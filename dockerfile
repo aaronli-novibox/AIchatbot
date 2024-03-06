@@ -1,18 +1,38 @@
-# 使用官方 Node.js 镜像作为基础镜像
-FROM node:latest
+# syntax=docker/dockerfile:1
 
-# 设置工作目录
-WORKDIR /app
+# Comments are provided throughout this file to help you get started.
+# If you need more help, visit the Dockerfile reference guide at
+# https://docs.docker.com/go/dockerfile-reference/
 
-# 将应用程序的依赖项安装到容器中
-COPY package*.json ./
-RUN npm install
+# Want to help us make this template better? Share your feedback here: https://forms.gle/ybq9Krt8jtBL3iCk7
 
-# 将应用程序源代码复制到容器中
+ARG NODE_VERSION=20.11.0
+
+FROM node:${NODE_VERSION}-alpine
+
+# Use production node environment by default.
+ENV NODE_ENV production
+
+
+WORKDIR /usr/src/app
+
+# Download dependencies as a separate step to take advantage of Docker's caching.
+# Leverage a cache mount to /root/.npm to speed up subsequent builds.
+# Leverage a bind mounts to package.json and package-lock.json to avoid having to copy them into
+# into this layer.
+RUN --mount=type=bind,source=package.json,target=package.json \
+    --mount=type=bind,source=package-lock.json,target=package-lock.json \
+    --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev
+
+# Run the application as a non-root user.
+USER node
+
+# Copy the rest of the source files into the image.
 COPY . .
 
-# 暴露容器内应用程序运行的端口（如果有需要的话）
+# Expose the port that the application listens on.
 EXPOSE 3000
 
-# 定义容器启动时运行的命令
-CMD ["npm", "start"]
+# Run the application.
+CMD npm start

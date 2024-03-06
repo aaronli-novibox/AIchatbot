@@ -8,6 +8,7 @@ const MongoController = {
     getProductsList: async (req, res) => {
         
         await MongoConnect()
+        console.log("sauidhksa")
         await MongoServices.getProductsList(req, res)
         await MongoDisconnect()
     }
