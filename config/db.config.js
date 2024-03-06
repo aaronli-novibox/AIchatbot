@@ -3,9 +3,9 @@ const path = require('path')
 const { MONGO_URI } = require('../config/config')
 
 
-function MongoConnect () {
+async function MongoConnect () {
 
-    mongoose.connect(MONGO_URI, {})
+    await mongoose.connect(MONGO_URI,)
     .then(() => {
         console.log('Connected to MongoDB: ', mongoose.connection.db.databaseName);
     })
@@ -15,8 +15,8 @@ function MongoConnect () {
 
 }
 
-function MongoDisconnect () {
-    mongoose.disconnect()
+async function MongoDisconnect () {
+    await mongoose.disconnect()
     .then(() => {
         console.log('Disconnected from MongoDB');
     })
