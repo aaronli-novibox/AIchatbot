@@ -9,3 +9,10 @@
  * Copyright (c) 2024 by Qi Li, All Rights Reserved. 
 -->
 This project builds a AIchatbot for novibox online shopify store.
+
+1. ec2
+2. docker build -t xxx .
+3. docker run -d -p 3000:3000 -v /home/ubuntu/AIchatbot:/usr/src/app --name chatbot xxx make sure run in host pc(server): npm install
+4. nginx
+
+TODO: details will be updated later.
