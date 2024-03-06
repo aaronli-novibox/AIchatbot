@@ -8,63 +8,47 @@
  * 
  * Copyright (c) 2024 by Qi Li, All Rights Reserved. 
  */
-require('dotenv').config();
-const express = require('express');
-const app = express();
-const Shopify = require('shopify-api-node');
-const { MongoClient } = require('mongodb')
+var createError = require('http-errors');
+var express = require('express');
+var path = require('path');
+var cookieParser = require('cookie-parser');
+var logger = require('morgan');
 
-// Environment variables
-const {
-    MONGO_URI,
-    SHOPIFY_API_KEY,
-    SHOPIFY_API_PASSWORD,
-    SHOPIFY_SHOP_NAME
-} = process.env;
+// route
+var MongoRouter = require('./routes/mongo/MongoRouter');
+// var ShopifyRouter = require('./routes/shopify/');
 
+var app = express();
 
-// Shopify API client
-const shopify = new Shopify({
-    shopName: SHOPIFY_SHOP_NAME,
-    apiKey: SHOPIFY_API_KEY,
-    password: SHOPIFY_API_PASSWORD
+// view engine setup
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'jade');
+
+app.use(logger('dev'));
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// app.use('/', indexRouter);
+// app.use('/users', usersRouter);
+app.use(MongoRouter);
+// app.use(ShopifyRouter);
+
+// catch 404 and forward to error handler
+app.use(function (req, res, next) {
+  next(createError(404));
 });
 
-const client = new MongoClient(MONGO_URI);
+// error handler
+app.use(function (err, req, res, next) {
+  // set locals, only providing error in development
+  res.locals.message = err.message;
+  res.locals.error = req.app.get('env') === 'development' ? err : {};
 
-  
-// Root Route
-app.get('/', (req, res) => {
-  res.send('Welcome to the NoviBOX Shopify-MongoDB Sync App');
+  // render the error page
+  res.status(err.status || 500);
+  res.render('error');
 });
 
-// Endpoint to trigger product syncing
-app.get('/mongo', async (req, res) => {
-    try {
-      const database = client.db('test');
-      const movies = database.collection('product');
-      // Query for a movie that has the title 'Back to the Future'
-      const query = { name: 'duck lamp' };
-      const movie = await movies.find(query);
-      for await (const doc of movie) {
-        console.log(doc);
-      }
-    } finally {
-      // Ensures that the client will close when you finish/error
-      await client.close();
-    }
-});
-
-// Endpoint to trigger product syncing
-app.get('/products', async (req, res) => {
-  await shopify.product
-    .list()
-    .then((products) => res.send(products))
-    .catch((err) => console.error(err));
-});
-
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-})
+module.exports = app;
