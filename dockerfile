@@ -2,7 +2,7 @@
 FROM node:latest
 
 # 设置工作目录
-WORKDIR /usr/src/app
+WORKDIR /app
 
 # 将应用程序的依赖项安装到容器中
 COPY package*.json ./
