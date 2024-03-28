@@ -7,6 +7,8 @@ WORKDIR /app
 # 将当前目录下的所有文件复制到容器的/app目录
 COPY . /app
 
+RUN pip install torch --cache-dir=~/mnt
+
 # 使用pip命令安装依赖
 RUN pip install --cache-dir=~/mnt -r requirements.txt
 
