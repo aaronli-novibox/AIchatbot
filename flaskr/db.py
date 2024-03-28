@@ -4,10 +4,8 @@ from flask import current_app, g
 
 # connect with openai service
 def get_mongo_db():
-
     if 'db' not in g:
         g.db = MongoClient(current_app.config['MONGO_URI'])
-
     return g.db
 
 

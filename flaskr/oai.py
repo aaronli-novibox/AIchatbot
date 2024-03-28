@@ -11,8 +11,6 @@ def get_openai_service():
     return g.clientOpenAI
 
 
-# # disconnect with mongoDB
-# def close_db(e=None):
-#     db = g.pop('db', None)
-#     if db is not None:
-#         db.close()
+# # disconnect with openai service
+def close_openai_service(e=None):
+    oai = g.pop('clientOpenAI', None)

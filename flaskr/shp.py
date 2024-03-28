@@ -1,10 +1,15 @@
 from pathlib import Path
 import shopify
-from flask import current_app, g
 import os
 import binascii
 import json
 import pandas as pd
+
+from FlagEmbedding import FlagModel
+import random
+import numpy as np
+import re
+from flask import current_app, g
 
 
 class shoipfy_services:
@@ -18,9 +23,9 @@ class shoipfy_services:
         session = shopify.Session(shop_url, api_version, private_app_password)
         shopify.ShopifyResource.activate_session(session)
 
-        self.script_dir = os.path.dirname(__file__)
+        self.query_dir = os.path.join(os.path.dirname(__file__), 'query_files')
 
-    # 销毁时断开连接 del shoipfy_services
+    # 销毁时断开连接: del shoipfy_services
     def __del__(self):
         shopify.ShopifyResource.clear_session()
 
@@ -46,6 +51,51 @@ class shoipfy_services:
 
         # shopify.ShopifyResource.clear_session()
         return response
+
+    # query info from shopify and wirte to mongodb
+    def query(self, field):
+
+        if field == "products":
+            collection = g.db['test2']['products']
+            self.query_products_process(collection)
+
+    # update and replace all products
+    def query_products_process(self, collection):
+
+        # 初始化 FlagModel
+        emb_model = FlagModel(
+            'BAAI/bge-large-zh-v1.5',
+            query_instruction_for_retrieval="为这个句子生成表示以用于检索商品：",
+            use_fp16=True)
+
+        document = Path(os.path.join(self.query_dir,
+                                     "product.graphql")).read_text()
+        productInfo = shopify.GraphQL().execute(
+            query=document,
+            variables={"first": 250},
+            operation_name="GetManyProducts")
+
+        productInfo = json.loads(productInfo)
+        productInfo = flatten_data(productInfo)
+
+        for i in range(len(productInfo)):
+
+            description = productInfo[i]["description"]
+            description_vector = emb_model.encode(description).astype(
+                np.float64)
+            productInfo[i]["description_vector"] = description_vector.tolist()
+            result = collection.replace_one({"id": productInfo[i]["id"]},
+                                            productInfo[i],
+                                            upsert=True)
+            # 检查结果
+            # if result.matched_count > 0:
+            #     print("Document updated.")
+            # elif result.upserted_id is not None:
+            #     print("Document inserted with ID:", result.upserted_id)
+            # else:
+            #     print("No changes made to the collection.")
+
+        print("商品总数为：", len(productInfo))
 
 
 # connect with shopify api
@@ -239,6 +289,27 @@ def convert_row_to_dict2(row):
     return customer
 
 
-if __name__ == '__main__':
+# 自定义一个函数来处理列表，使其在一个字符串中不换行
+def custom_list_format(lst):
+    return json.dumps(lst)[1:-1]    # 将列表转换为JSON字符串，然后去掉开头和结尾的[]
 
-    get_shopify_api()
+
+def flatten_data(data):
+    """
+    递归地移除'data'、'node'和'nodes'键，返回处理后的数据。
+    """
+    if isinstance(data, dict):
+        if "data" in data:
+            return flatten_data(data["data"])
+        elif "node" in data:
+            return flatten_data(data["node"])
+        elif "products" in data:
+            return flatten_data(data["products"])
+        elif "nodes" in data:
+            return [flatten_data(item) for item in data["nodes"]]
+        else:
+            return {k: flatten_data(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [flatten_data(item) for item in data]
+    else:
+        return data

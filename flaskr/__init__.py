@@ -1,12 +1,15 @@
 import os
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from services.mongo import *
+from services.aichatbot.AIchatBotService import *
+from services.mongo.MongoService import *
 from bson import json_util
 
 from flask_pymongo import PyMongo
 from dotenv import load_dotenv
 from flask import current_app, g
-from .shp import get_shopify_api, extract_excel
+from .shp import *
+from .oai import *
 from .db import get_mongo_db, close_db
 # from config import config
 
@@ -41,26 +44,180 @@ def create_app(test_config=None):
 
     # config(app)
 
+    # router
     @app.before_request
     def before_request():
-        # if 'mongo' not in g:
-        # print(app.config["MONGO_URI"])
-        # g.mongo = PyMongo(app)
-        # print(g.mongo.db.name)
-        get_mongo_db()
-        # get_shopify_api()
-        # grandparent_dir = os.path.dirname(os.path.dirname(__file__))
 
-        # extract_excel(
-        #     os.path.join(grandparent_dir, "db_files/customers_export.xlsx"),
-        #     'customers')
-        # extract_excel(
-        #     os.path.join(grandparent_dir, "db_files/orders_export_1.xlsx"),
-        #     'orders')
+        # connect to mongodb
+        get_mongo_db()
+        get_openai_service()
+
+        # path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+        #                     "db_files/orders_export_1.xlsx")
+
+        # path2 = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+        #                      "db_files/customers_export.xlsx")
+
+        # extract_excel(path, "orders")
+        # extract_excel(path2, "customers")
+
+        # json_data = [
+        #     {
+        #         "influencer_name":
+        #             "Buse Keskin",
+        #         "influencer_email":
+        #             "healthykitchenohio@gmail.com",
+        #         "promo_code":
+        #             "BUSEK10",
+        #         "contract_start":
+        #             "02-18-2024",
+        #         "contract_end":
+        #             "02-18-2025",
+        #         "product": [{
+        #             "product_sku": "BAL2308020W",
+        #             "product_name": "File Night Light white",
+        #             "commission": "15%",
+        #             "product_contract_start": "02-18-2024",
+        #             "product_contract_end": "02-18-2025"
+        #         }]
+        #     },
+        #     {
+        #         "influencer_name":
+        #             "Rachel Koehler",
+        #         "influencer_email":
+        #             "heart4ocr@gmail.com",
+        #         "promo_code":
+        #             "RACHELK10",
+        #         "contract_start":
+        #             "02-16-2024",
+        #         "contract_end":
+        #             "02-16-2025",
+        #         "product": [{
+        #             "product_sku": "BAL2308019W",
+        #             "product_name": "File Night mini Lamp white",
+        #             "commission": "15%",
+        #             "product_contract_start": "02-16-2024",
+        #             "product_contract_end": "02-16-2025"
+        #         }]
+        #     },
+        #     {
+        #         "influencer_name":
+        #             "Melinda Ly",
+        #         "influencer_email":
+        #             "businessmelly96@gmail.com",
+        #         "promo_code":
+        #             "MELINDAL10",
+        #         "contract_start":
+        #             "02-16-2024",
+        #         "contract_end":
+        #             "02-16-2025",
+        #         "product": [{
+        #             "product_sku": "BGS2308010B",
+        #             "product_name": "Sirius P5Earbuds",
+        #             "commission": "13%",
+        #             "product_contract_start": "02-16-2024",
+        #             "product_contract_end": "02-16-2025",
+        #         }, {
+        #             "product_sku": "BCT2308014L",
+        #             "product_name": "Mini Plunger-shaped Diffuser(Leather)",
+        #             "commission": "22%",
+        #             "product_contract_start": "02-16-2024",
+        #             "product_contract_end": "02-16-2025",
+        #         }]
+        #     },
+        #     {
+        #         "influencer_name":
+        #             "Hani Mak",
+        #         "influencer_email":
+        #             "hanigracework@gmail.com",
+        #         "promo_code":
+        #             "HANIK10",
+        #         "contract_start":
+        #             "02-16-2024",
+        #         "contract_end":
+        #             "02-16-2025",
+        #         "product": [{
+        #             "product_sku": "BAL2308018W",
+        #             "product_name": "Fila Night Desk Lamp white",
+        #             "commission": "15%",
+        #             "product_contract_start": "02-16-2024",
+        #             "product_contract_end": "02-16-2025"
+        #         }]
+        #     },
+        #     {
+        #         "influencer_name":
+        #             "Jessica west",
+        #         "influencer_email":
+        #             "collabwjess@gmail.com",
+        #         "promo_code":
+        #             "JESSICAW10",
+        #         "contract_start":
+        #             "02-16-2024",
+        #         "contract_end":
+        #             "02-16-2025",
+        #         "product": [{
+        #             "product_sku": "BAL2308018W",
+        #             "product_name": "Fila Night Desk Lamp white",
+        #             "commission": "15%",
+        #             "product_contract_start": "02-16-2024",
+        #             "product_contract_end": "02-16-2025"
+        #         }]
+        #     },
+        #     {
+        #         "influencer_name":
+        #             "Cassandra Farley",
+        #         "influencer_email":
+        #             None,
+        #         "promo_code":
+        #             "CASSANDRAF10",
+        #         "contract_start":
+        #             "03-01-2024",
+        #         "contract_end":
+        #             "03-01-2025",
+        #         "product": [{
+        #             "product_sku": "BGS2308010B",
+        #             "product_name": "Sirius P5Earbuds",
+        #             "commission": "13%",
+        #             "product_contract_start": "03-01-2024",
+        #             "product_contract_end": "03-01-2025"
+        #         }]
+        #     },
+        #     {
+        #         "influencer_name": "TrackerTest1",
+        #         "influencer_email": None,
+        #         "promo_code": "NOVIBOX20",
+        #         "contract_start": None,
+        #         "contract_end": None,
+        #         "product": []
+        #     },
+        #     {
+        #         "influencer_name": "TrackerTest2",
+        #         "influencer_email": None,
+        #         "promo_code": "UGC",
+        #         "contract_start": None,
+        #         "contract_end": None,
+        #         "product": []
+        #     },
+        #     {
+        #         "influencer_name": "TrackerTest3",
+        #         "influencer_email": None,
+        #         "promo_code": "WELCOME10",
+        #         "contract_start": None,
+        #         "contract_end": None,
+        #         "product": []
+        #     },
+        # ]
+        # insertInfluencerData(json_data)
+
+        # shopify_class = shoipfy_services()
+        # shopify_class.query("products")
+
+        # del shopify_class
 
     @app.after_request
     def after_request(response):
         close_db()
+        close_openai_service()
         return response
 
     @app.route('/products')
@@ -101,6 +258,39 @@ def create_app(test_config=None):
             },
             'msg': 'success'
         })
+
+    @app.route('/influencers')
+    def getInfluencersInfoFromMongoDB():
+        influencers_cursor = getInfluencerListFromMongoDB()
+        influencers_list = list(influencers_cursor)
+
+        return jsonify({
+            'code': '0000',
+            'data': {
+                'influencers': influencers_list
+            },
+            'msg': 'success'
+        })
+
+    @app.route('/')
+    def hello_novi_box():
+        return "hello_novi_box"
+
+    # aichatbot service
+    @app.route('/user-typing', methods=['POST'])
+    def user_typing():
+        req = request.json
+        return userTyping(req)
+
+    @app.route('/recommand-list', methods=['POST'])
+    def recommand_by_list():
+        req = request.json
+        return recommandGiftByList(req)
+
+    @app.route('/recommand-user-typing', methods=['POST'])
+    def recommand_by_user_typing():
+        req = request.json
+        return recommandGiftByUserInput(req)
 
     return app
 
