@@ -8,7 +8,7 @@ WORKDIR /app
 COPY . /app
 
 # 使用pip命令安装依赖
-RUN pip install --cache-dir=/mynewvolume/pip_cache -r requirements.txt
+RUN sudo pip install --cache-dir=/mynewvolume/pip_cache -r requirements.txt
 
 # 告诉Docker容器监听3000端口
 EXPOSE 3000
