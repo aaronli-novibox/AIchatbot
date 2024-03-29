@@ -21,4 +21,4 @@ ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_RUN_PORT=3000
 
 # 启动Flask应用
-CMD flask --app flaskr run --debug
+CMD gunicorn -w 4 "flaskr:create_app()"
