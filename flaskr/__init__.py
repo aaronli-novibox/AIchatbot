@@ -217,7 +217,9 @@ def create_app(test_config=None):
     @app.after_request
     def after_request(response):
         close_db()
-        # close_openai_service()
+        close_openai_service()
+        for name, value in globals().items():
+            print(f"{name}: {value}")
         return response
 
     @app.route('/products')
