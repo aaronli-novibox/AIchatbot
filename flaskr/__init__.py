@@ -220,7 +220,7 @@ def create_app(test_config=None):
         close_openai_service()
         import gc
         gc.collect()    # 强制执行垃圾收集
-        print(gc.garbage)    # 打印无法回收的对象列表
+        print("garbage", gc.garbage)    # 打印无法回收的对象列表
 
         return response
 
