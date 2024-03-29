@@ -218,8 +218,10 @@ def create_app(test_config=None):
     def after_request(response):
         close_db()
         close_openai_service()
-        for name, value in globals().items():
-            print(f"{name}: {value}")
+        import gc
+        gc.collect()    # 强制执行垃圾收集
+        print(gc.garbage)    # 打印无法回收的对象列表
+
         return response
 
     @app.route('/products')
