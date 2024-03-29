@@ -3,6 +3,7 @@ from FlagEmbedding import FlagModel
 import numpy as np
 import re
 from FlagEmbedding import FlagModel
+import os
 
 
 # 匹配branch
@@ -99,9 +100,12 @@ def userTyping(req):
 def recommandGiftByUserInput(req):
 
     user_typing = req["user_typing"]
-
+    os.path.join(os.path.dirname(__file__), 'models/bge-large-zh-v1.5')
     # 初始化 FlagModel
-    emb_model = FlagModel('BAAI/bge-large-zh-v1.5',
+    emb_model = FlagModel(os.path.join(
+        os.path.dirname(__file__),
+        'models/models--BAAI--bge-large-zh-v1.5/snapshots/c11661ba3f9407eeb473765838eb4437e0f015c0'
+    ),
                           query_instruction_for_retrieval="为这个句子生成表示以用于检索商品：",
                           use_fp16=True)
 
@@ -185,7 +189,10 @@ def recommandGiftByList(req):
     style = req.get("style", None)    # 如果不存在，则返回 None
 
     # 初始化 FlagModel
-    emb_model = FlagModel('BAAI/bge-large-zh-v1.5',
+    emb_model = FlagModel(os.path.join(
+        os.path.dirname(__file__),
+        'models/models--BAAI--bge-large-zh-v1.5/snapshots/c11661ba3f9407eeb473765838eb4437e0f015c0'
+    ),
                           query_instruction_for_retrieval="为这个句子生成表示以用于检索商品：",
                           use_fp16=True)
 
