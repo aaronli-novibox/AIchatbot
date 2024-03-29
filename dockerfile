@@ -1,5 +1,5 @@
 # 使用官方Python镜像作为基础镜像
-FROM python:3.8-slim
+FROM python:3.8
 
 # 设置工作目录为/app
 WORKDIR /app
@@ -7,8 +7,10 @@ WORKDIR /app
 # 将当前目录下的所有文件复制到容器的/app目录
 COPY . /app
 
+RUN pip install --no-cache-dir FlagEmbedding
+
 # 使用pip命令安装依赖
-RUN pip install --cache-dir=~/mnt -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # 告诉Docker容器监听3000端口
 EXPOSE 3000
