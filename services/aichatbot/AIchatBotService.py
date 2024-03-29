@@ -54,7 +54,7 @@ def userTyping(req):
 
     if branch_index == 1:
         print("branch 1")
-        return recommandGiftByUserInput(user_typing)
+        return recommandGiftByUserInput(req)
 
     elif branch_index == 2:
 
@@ -106,6 +106,7 @@ def recommandGiftByUserInput(req):
                           use_fp16=True)
 
     query_vector = emb_model.encode(user_typing).astype(np.float64).tolist()
+
     # 构建聚合查询
     query = [{
         "$vectorSearch": {
@@ -113,18 +114,18 @@ def recommandGiftByUserInput(req):
             "path": "description_vector",
             "queryVector": query_vector,
             "numCandidates": 50,
-            "limit": 10
+            "limit": 10,
         }
     }, {
         "$addFields": {
             "similarityScore": {
-                "$meta": "searchScore"
+                "$meta": "vectorSearchScore"
             }
         }
     }]
 
     # 执行查询
-    results = g.db.shopcollection.aggregate(query)
+    results = g.db.test2.products.aggregate(query)
     # 假设 results 是从 MongoDB 查询得到的结果
     results_list = list(results)    # 将 CommandCursor 对象转换为列表
 
@@ -132,9 +133,16 @@ def recommandGiftByUserInput(req):
     # top_three_ids = [result['id'] for result in results_list[:3]]
     # print(top_three_ids)
 
+    for i in range(len(results_list)):
+        if 'description_vector' in results_list[i].keys():
+            del results_list[i]['description_vector']
+        if '_id' in results_list[i].keys():
+            del results_list[i]['_id']
+
     # 打印结果
     for result in results_list[0:3]:
-        print(result)
+        print(result.keys())
+
         print(
             f"ID: {result['id']}, Similarity Score: {result['similarityScore']}"
         )
@@ -245,7 +253,7 @@ def recommandGiftByList(req):
     query = [{
         "$vectorSearch": {
             "index": "vector_index",
-            "path": "Description Vector",
+            "path": "description_vector",
             "queryVector": query_vector,
             "numCandidates": 50,
             "limit": 10
@@ -260,7 +268,7 @@ def recommandGiftByList(req):
     }]
 
     # 执行查询
-    results = g.db.shopcollection.aggregate(query)
+    results = g.db.test2.products.aggregate(query)
 
     # 假设 results 是从 MongoDB 查询得到的结果
     results_list = list(results)    # 将 CommandCursor 对象转换为列表
