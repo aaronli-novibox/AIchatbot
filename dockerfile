@@ -7,8 +7,6 @@ WORKDIR /app
 # 将当前目录下的所有文件复制到容器的/app目录
 COPY . /app
 
-RUN pip install --no-cache-dir FlagEmbedding
-
 # 使用pip命令安装依赖
 RUN pip install --no-cache-dir -r requirements.txt
 
