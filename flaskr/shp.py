@@ -64,7 +64,7 @@ class shoipfy_services:
 
         # 初始化 FlagModel
         emb_model = FlagModel(
-            'BAAI/bge-large-zh-v1.5',
+            '../services/aichatbot/models/models--BAAI--bge-large-en-v1.5',
             query_instruction_for_retrieval="为这个句子生成表示以用于检索商品：",
             use_fp16=True)
 
