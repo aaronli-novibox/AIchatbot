@@ -160,7 +160,7 @@ def create_app(test_config=None):
 
         return hmac.compare_digest(computed_hmac, hmac_header.encode('utf-8'))
 
-    @app.route('/webhook', methods=['POST', 'GET'])
+    @app.route('/webhook', methods=['POST'])
     def handle_webhook():
         print("here1")
 
@@ -173,24 +173,6 @@ def create_app(test_config=None):
             abort(401)
 
         # Process webhook payload
-
-        webhookService(data)
-
-        return ('', 200)
-
-    @app.route('/webhook/webhook', methods=['POST', 'GET'])
-    def handle_webhook2():
-        print("here2")
-        data = request.get_data()
-        print(data)
-        verified = verify_webhook(data,
-                                  request.headers.get('X-Shopify-Hmac-SHA256'))
-
-        if not verified:
-            abort(401)
-
-        # Process webhook payload
-
         webhookService(data)
 
         return ('', 200)
