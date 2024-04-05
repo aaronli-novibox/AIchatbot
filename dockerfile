@@ -17,4 +17,5 @@ EXPOSE 3000
 
 
 # 运行 Gunicorn 服务器来启动 Flask 应用
-CMD gunicorn -w 1 -b 0.0.0.0:3000 "flaskr:create_app()"
+# CMD gunicorn -w 1 -b 0.0.0.0:3000 "flaskr:create_app()"
+CMD flask --app flaskr run
