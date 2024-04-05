@@ -173,7 +173,9 @@ def create_app(test_config=None):
 
         webhookService(data)
 
-    return ('', 200)
+        return ('', 200)
+
+    return app
 
 
 if __name__ == '__main__':
