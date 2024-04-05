@@ -30,15 +30,6 @@ def config(app):
     app.config["OPENAI_KEY"] = os.getenv("OPENAI_KEY")
 
 
-def verify_webhook(data, hmac_header):
-    digest = hmac.new(app.config['SHOPIFY_API_PASSWORD'].encode('utf-8'),
-                      data,
-                      digestmod=hashlib.sha256).digest()
-    computed_hmac = base64.b64encode(digest)
-
-    return hmac.compare_digest(computed_hmac, hmac_header.encode('utf-8'))
-
-
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
@@ -160,6 +151,14 @@ def create_app(test_config=None):
     def recommand_by_user_typing():
         req = request.json
         return recommandGiftByUserInput(req)
+
+    def verify_webhook(data, hmac_header):
+        digest = hmac.new(app.config['SHOPIFY_API_PASSWORD'].encode('utf-8'),
+                          data,
+                          digestmod=hashlib.sha256).digest()
+        computed_hmac = base64.b64encode(digest)
+
+        return hmac.compare_digest(computed_hmac, hmac_header.encode('utf-8'))
 
     @app.route('/webhook', methods=['POST'])
     def handle_webhook():
