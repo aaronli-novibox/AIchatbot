@@ -195,6 +195,13 @@ def create_app(test_config=None):
 
         return ('', 200)
 
+    @app.errorhandler(405)
+    def method_not_allowed(e):
+        print(f"Method Not Allowed: {request.method} {request.path}")
+        print("Headers:", request.headers)
+        print("Body:", request.data)
+        return "Method Not Allowed", 405
+
     return app
 
 
