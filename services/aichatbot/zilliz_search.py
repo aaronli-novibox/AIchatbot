@@ -6,6 +6,7 @@ from FlagEmbedding import FlagModel
 import os
 from pymilvus import MilvusClient, DataType
 import json
+from openai import OpenAI
 
 
 # 匹配branch
@@ -35,7 +36,8 @@ def userTyping(req):
     # 根据user_Need_List动态生成描述内容的Python代码
     content = f"You need to help me determine the next branch direction based on the user's freely entered content. We have the following branch directions: 1. The user's input is a description of the goods they need to purchase, and we will make recommendations based on the user's input next. 2. The user wants to query historical order information, logistics information, etc. 3. The user is using our conversation for casual chat. 4. Unable to identify user intent. The following is the user's conversation {user_typing}. Please determine the branch. If it is branch 1, reply with 1, and so on."
 
-    stream = g.clientOpenAI.chat.completions.create(
+    opi_client = OpenAI(api_key=current_app.config['OPENAI_KEY'])
+    stream = opi_client.chat.completions.create(
         model="gpt-4",
         messages=[{
             "role": "user",
@@ -162,6 +164,7 @@ def recommandGiftByUserInput(req):
     # Convert the output to a formatted JSON string
     result_json = json.dumps(res, indent=4)
     print(result_json)
+    result_json = json.loads(result_json)
 
     # 打印结果
     for result in result_json:
@@ -242,7 +245,8 @@ def recommandGiftByList(req):
 
     print(content)
 
-    stream = g.clientOpenAI.chat.completions.create(
+    opi_client = OpenAI(api_key=current_app.config['OPENAI_KEY'])
+    stream = opi_client.chat.completions.create(
         model="gpt-4",
         messages=[{
             "role": "user",
