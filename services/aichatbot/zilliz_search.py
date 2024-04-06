@@ -151,7 +151,7 @@ def recommandGiftByUserInput(req):
     # Single vector search
     res = client.search(
         collection_name="products",
-        data=query_vector,
+        data=[query_vector],
         limit=10,    # Max. number of search results to return
         search_params={
             "metric_type": "COSINE",
