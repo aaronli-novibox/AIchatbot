@@ -1,7 +1,7 @@
 import os
 from flask import Flask, jsonify, request, abort
 from services.mongo import *
-from services.aichatbot.AIchatBotService import *
+# from services.aichatbot.AIchatBotService import *
 from services.mongo.MongoService import *
 from bson import json_util
 
@@ -15,6 +15,7 @@ from services.webhook.webhookService import *
 import hmac
 import hashlib
 import base64
+from services.aichatbot.zilliz_search import *
 
 # from config import config
 # from .openai import get_openai_client
@@ -162,10 +163,8 @@ def create_app(test_config=None):
 
     @app.route('/webhook', methods=['POST'])
     def handle_webhook():
-        print("here1")
 
         data = request.get_data()
-        print(data)
         verified = verify_webhook(data,
                                   request.headers.get('X-Shopify-Hmac-SHA256'))
 
@@ -176,6 +175,12 @@ def create_app(test_config=None):
         webhookService(data)
 
         return ('', 200)
+
+    # test zilliz vector query speed
+    @app.route('/test-zilliz', methods=['POST'])
+    def user_typing():
+        req = request.json
+        return userTyping(req)
 
     @app.errorhandler(405)
     def method_not_allowed(e):
