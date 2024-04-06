@@ -167,24 +167,24 @@ def recommandGiftByUserInput(req):
     result_json = json.loads(result_json)
 
     # 打印结果
-    for result in result_json:
-        # print(result.keys())
+    # for result in result_json:
+    #     # print(result.keys())
 
-        print(
-            f"ID: {result_json['id']}, Similarity Score: {result_json['distance']}"
-        )
-        if result['similarityScore'] <= 0.35:
-            if_succ = False
-            print("这里跳转到提示让他们填表单找礼物的功能")
-            return jsonify({
-                'code':
-                    '0001',
-                'data': {
-                    'result': None,
-                },
-                'msg':
-                    'The user\'s input is a description of the goods they need to purchase, but similarity score is too low. 请求推荐礼物, 但是礼物推荐的相似度太低, 推荐失败'
-            })
+    #     print(
+    #         f"ID: {result_json['id']}, Similarity Score: {result_json['distance']}"
+    #     )
+    #     if result['similarityScore'] <= 0.35:
+    #         if_succ = False
+    #         print("这里跳转到提示让他们填表单找礼物的功能")
+    #         return jsonify({
+    #             'code':
+    #                 '0001',
+    #             'data': {
+    #                 'result': None,
+    #             },
+    #             'msg':
+    #                 'The user\'s input is a description of the goods they need to purchase, but similarity score is too low. 请求推荐礼物, 但是礼物推荐的相似度太低, 推荐失败'
+    #         })
 
     # 成功返回
     return jsonify({
