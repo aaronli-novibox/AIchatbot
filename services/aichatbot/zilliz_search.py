@@ -168,7 +168,7 @@ def recommandGiftByUserInput(req):
         # print(result.keys())
 
         print(
-            f"ID: {result['id']}, Similarity Score: {result['similarityScore']}"
+            f"ID: {result_json['id']}, Similarity Score: {result_json['distance']}"
         )
         if result['similarityScore'] <= 0.35:
             if_succ = False
