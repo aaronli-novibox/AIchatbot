@@ -178,7 +178,7 @@ def create_app(test_config=None):
 
     # test zilliz vector query speed
     @app.route('/test-zilliz', methods=['POST'])
-    def user_typing():
+    def test_zilliz():
         req = request.json
         return userTyping(req)
 
