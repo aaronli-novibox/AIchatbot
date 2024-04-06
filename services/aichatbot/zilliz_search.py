@@ -165,7 +165,7 @@ def recommandGiftByUserInput(req):
 
     # 打印结果
     for result in result_json:
-        print(result.keys())
+        # print(result.keys())
 
         print(
             f"ID: {result['id']}, Similarity Score: {result['similarityScore']}"
