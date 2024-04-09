@@ -120,7 +120,7 @@ def recommandGiftByUserInput(req):
     query_vector = emb_model.encode(user_typing).astype(np.float64).tolist()
 
     end_time = time.time()
-    print(
+    current_app.logger.info(
         f"Time taken to load the model and encode the user's input: {end_time - start_time} seconds"
     )
 
@@ -173,7 +173,8 @@ def recommandGiftByUserInput(req):
     )
 
     end_time = time.time()
-    print(f"time taken to search: {end_time - start_time} seconds")
+    current_app.logger.info(
+        f"time taken to search: {end_time - start_time} seconds")
 
     start_time = time.time()
     # Convert the output to a formatted JSON string
@@ -182,7 +183,8 @@ def recommandGiftByUserInput(req):
     result_json = json.loads(result_json)
 
     end_time = time.time()
-    print(f"time taken to format the result: {end_time - start_time} seconds")
+    current_app.logger.info(
+        f"time taken to format the result: {end_time - start_time} seconds")
 
     # 打印结果
     # for result in result_json:
