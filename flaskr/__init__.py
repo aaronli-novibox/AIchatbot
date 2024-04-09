@@ -31,6 +31,20 @@ def config(app):
     app.config["OPENAI_KEY"] = os.getenv("OPENAI_KEY")
 
 
+# 假设这是你加载模型的函数
+def load_model():
+    # 加载模型逻辑
+    # 例如：model = SomeModel.load('model_path')
+    # print(os.path.dirname(__file__))
+    emb_model = FlagModel(os.path.join(
+        os.path.dirname(__file__),
+        'services/aichatbot/models/models--BAAI--bge-large-zh-v1.5/snapshots/c11661ba3f9407eeb473765838eb4437e0f015c0'
+    ),
+                          query_instruction_for_retrieval="为这个句子生成表示以用于检索商品：",
+                          use_fp16=True)
+    return emb_model
+
+
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
@@ -48,6 +62,8 @@ def create_app(test_config=None):
         app.config.from_mapping(test_config)
 
     # config(app)
+    # 在应用启动时加载模型
+    app.config['MODEL'] = load_model()
 
     # router
     @app.before_request
@@ -193,5 +209,7 @@ def create_app(test_config=None):
 
 
 if __name__ == '__main__':
-    app = create_app()
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    # app = create_app()
+    # app.run(host='0.0.0.0', port=8080, debug=True)
+
+    load_model()

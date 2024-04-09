@@ -110,12 +110,7 @@ def recommandGiftByUserInput(req):
 
     start_time = time.time()
 
-    emb_model = FlagModel(os.path.join(
-        os.path.dirname(__file__),
-        'models/models--BAAI--bge-large-zh-v1.5/snapshots/c11661ba3f9407eeb473765838eb4437e0f015c0'
-    ),
-                          query_instruction_for_retrieval="为这个句子生成表示以用于检索商品：",
-                          use_fp16=True)
+    emb_model = current_app.config['MODEL']
 
     end_time = time.time()
     current_app.logger.info(
