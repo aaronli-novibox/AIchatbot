@@ -117,11 +117,17 @@ def recommandGiftByUserInput(req):
                           query_instruction_for_retrieval="为这个句子生成表示以用于检索商品：",
                           use_fp16=True)
 
+    end_time = time.time()
+    current_app.logger.info(
+        f"Time taken to load the model: {end_time - start_time} seconds")
+
+    start_time = time.time()
+
     query_vector = emb_model.encode(user_typing).astype(np.float64).tolist()
 
     end_time = time.time()
     current_app.logger.info(
-        f"Time taken to load the model and encode the user's input: {end_time - start_time} seconds"
+        f"Time taken to encode the user's input: {end_time - start_time} seconds"
     )
 
     # 构建聚合查询
