@@ -7,6 +7,7 @@ import os
 from pymilvus import MilvusClient, DataType
 import json
 from openai import OpenAI
+import time
 
 
 # 匹配branch
@@ -106,6 +107,9 @@ def recommandGiftByUserInput(req):
     user_typing = req["user_typing"]
     os.path.join(os.path.dirname(__file__), 'models/bge-large-zh-v1.5')
     # 初始化 FlagModel
+
+    start_time = time.time()
+
     emb_model = FlagModel(os.path.join(
         os.path.dirname(__file__),
         'models/models--BAAI--bge-large-zh-v1.5/snapshots/c11661ba3f9407eeb473765838eb4437e0f015c0'
@@ -114,6 +118,11 @@ def recommandGiftByUserInput(req):
                           use_fp16=True)
 
     query_vector = emb_model.encode(user_typing).astype(np.float64).tolist()
+
+    end_time = time.time()
+    print(
+        f"Time taken to load the model and encode the user's input: {end_time - start_time} seconds"
+    )
 
     # 构建聚合查询
     # query = [{
@@ -147,6 +156,8 @@ def recommandGiftByUserInput(req):
     #     if '_id' in results_list[i].keys():
     #         del results_list[i]['_id']
 
+    start_time = time.time()
+
     client = MilvusClient(uri=current_app.config['CLUSTER_ENDPOINT'],
                           token=current_app.config['TOKEN'])
 
@@ -161,10 +172,17 @@ def recommandGiftByUserInput(req):
         }    # Search parameters
     )
 
+    end_time = time.time()
+    print(f"time taken to search: {end_time - start_time} seconds")
+
+    start_time = time.time()
     # Convert the output to a formatted JSON string
     result_json = json.dumps(res, indent=4)
     print(result_json)
     result_json = json.loads(result_json)
+
+    end_time = time.time()
+    print(f"time taken to format the result: {end_time - start_time} seconds")
 
     # 打印结果
     # for result in result_json:
