@@ -37,7 +37,7 @@ def load_model():
     # 例如：model = SomeModel.load('model_path')
     # print(os.path.dirname(__file__))
     emb_model = FlagModel(os.path.join(
-        os.path.dirname(__file__),
+        os.path.dirname(os.path.dirname(__file__)),
         'services/aichatbot/models/models--BAAI--bge-large-zh-v1.5/snapshots/c11661ba3f9407eeb473765838eb4437e0f015c0'
     ),
                           query_instruction_for_retrieval="为这个句子生成表示以用于检索商品：",
