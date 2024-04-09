@@ -19,8 +19,7 @@ EXPOSE 3000
 ENV FLASK_APP=flaskr:create_app
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_RUN_PORT=3000
-ENV FLASK_ENV=development
 
 # 运行 Gunicorn 服务器来启动 Flask 应用
 # CMD gunicorn -w 1 -b 0.0.0.0:3000 "flaskr:create_app()"
-CMD flask run 
+CMD flask run --debug
