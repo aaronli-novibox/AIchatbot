@@ -1,7 +1,7 @@
 import os
 from flask import Flask, jsonify, request, abort
 from services.mongo import *
-# from services.aichatbot.AIchatBotService import *
+from services.aichatbot.AIchatBotService import *
 from services.mongo.MongoService import *
 from bson import json_util
 
@@ -15,7 +15,7 @@ from services.webhook.webhookService import *
 import hmac
 import hashlib
 import base64
-from services.aichatbot.zilliz_search import *
+# from services.aichatbot.zilliz_search import *
 
 # from config import config
 # from .openai import get_openai_client
@@ -196,10 +196,10 @@ def create_app(test_config=None):
         return ('', 200)
 
     # test zilliz vector query speed
-    @app.route('/test-zilliz', methods=['POST'])
-    def test_zilliz():
-        req = request.json
-        return userTyping(req)
+    # @app.route('/test-zilliz', methods=['POST'])
+    # def test_zilliz():
+    #     req = request.json
+    #     return userTyping(req)
 
     @app.errorhandler(405)
     def method_not_allowed(e):
