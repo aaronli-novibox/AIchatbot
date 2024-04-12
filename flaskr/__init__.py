@@ -170,7 +170,7 @@ def create_app(test_config=None):
         return recommandGiftByUserInput(req)
 
     def verify_webhook(data, hmac_header):
-        digest = hmac.new(app.config['SHOPIFY_API_PASSWORD'].encode('utf-8'),
+        digest = hmac.new(app.config['WEBHOOK_KEY'].encode('utf-8'),
                           data,
                           digestmod=hashlib.sha256).digest()
         computed_hmac = base64.b64encode(digest)
@@ -181,6 +181,7 @@ def create_app(test_config=None):
     def handle_webhook():
 
         data = request.get_data()
+        print(data)
         verified = verify_webhook(data,
                                   request.headers.get('X-Shopify-Hmac-SHA256'))
 
