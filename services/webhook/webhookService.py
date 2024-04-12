@@ -1,12 +1,11 @@
 from flask import current_app, g
 
 
-def webhookService(req):
+def webhookService(headers, json_data):
 
-    topic = req.headers.get('X-Shopify-Topic')
-    data = req.get_json()
+    topic = headers.get('X-Shopify-Topic')
 
-    current_app.logger.info(data)
+    current_app.logger.info(json_data)
 
     if topic == 'orders/create':
         return orderCreate(req)

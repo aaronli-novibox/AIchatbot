@@ -181,7 +181,9 @@ def create_app(test_config=None):
     def handle_webhook():
 
         data = request.get_data()
-        print(data)
+        app.logger.info(data)
+        headers = request.headers
+        json_data = request.json
         verified = verify_webhook(data,
                                   request.headers.get('X-Shopify-Hmac-SHA256'))
 
@@ -189,7 +191,7 @@ def create_app(test_config=None):
             abort(401)
 
         # Process webhook payload
-        webhookService(data)
+        webhookService(headers, json_data)
 
         return ('', 200)
 
