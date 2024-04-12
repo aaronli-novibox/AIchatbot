@@ -34,19 +34,15 @@ def insertCustomerToMongoDB(data):
     customer = customerCreate(data)
     customerCollection(customer)
 
-    return 1
-
 
 def customerCollection(customer_data):
     customer_collection = g.db['test2']["customers"]
-    customer_collection.insert_many(customer_data)
-
-    return 1
+    customer_collection.insert_one(customer_data)
 
 
 def customerCreate(data):
 
-    address = data.get("adress", {})
+    address = data.get("adress", [])
     customer = {
         "customer_id": data.get("id", None),
         "first_name": data.get("first_name", None),
