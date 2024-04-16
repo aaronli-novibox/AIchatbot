@@ -31,6 +31,12 @@ def getInfluencerListFromMongoDB():
 
     return documents
 
+def getNewInfluencerListFromMongoDB():
+
+    influencer_collection = g.db['test2']["new_influencers"]
+
+    return influencer_collection
+
 
 def insertInfluencerData(influencer_data):
 
