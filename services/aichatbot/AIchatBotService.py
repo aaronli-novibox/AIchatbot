@@ -4,6 +4,30 @@ import numpy as np
 import re
 from FlagEmbedding import FlagModel
 import os
+import shopify
+from pathlib import Path
+import json
+
+
+def flatten_data(data):
+    """
+    递归地移除'data'、'node'和'nodes'键，返回处理后的数据。
+    """
+    if isinstance(data, dict):
+        if "data" in data:
+            return flatten_data(data["data"])
+        elif "node" in data:
+            return flatten_data(data["node"])
+        elif "products" in data:
+            return flatten_data(data["products"])
+        elif "nodes" in data:
+            return [flatten_data(item) for item in data["nodes"]]
+        else:
+            return {k: flatten_data(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [flatten_data(item) for item in data]
+    else:
+        return data
 
 
 # 匹配branch
@@ -132,31 +156,54 @@ def recommandGiftByUserInput(req):
     # top_three_ids = [result['id'] for result in results_list[:3]]
     # print(top_three_ids)
 
+    # 连接shopify
+    shop_url = f"{current_app.config['SHOPIFY_SHOP_NAME']}.myshopify.com"
+    api_version = '2024-01'
+    private_app_password = current_app.config['SHOPIFY_API_PASSWORD']
+    session = shopify.Session(shop_url, api_version, private_app_password)
+    shopify.ShopifyResource.activate_session(session)
+
+    ids = []
+
     for i in range(len(results_list)):
         if 'description_vector' in results_list[i].keys():
             del results_list[i]['description_vector']
         if '_id' in results_list[i].keys():
             del results_list[i]['_id']
+        ids.append(results_list[i]['id'])
+
+    print(ids)
+    script_path = os.path.abspath(__file__)
+    script_dir = os.path.dirname(script_path)
+    document = Path(os.path.join(script_dir,
+                                 "laohuji_query.graphql")).read_text()
+
+    productInfo = shopify.GraphQL().execute(query=document,
+                                            variables={"product_ids": ids},
+                                            operation_name="GetManyProducts")
+
+    productInfo = json.loads(productInfo)
+    productInfo = flatten_data(productInfo)
 
     # 打印结果
-    for result in results_list[0:3]:
-        print(result.keys())
+    # for result in results_list[0:3]:
+    #     print(result.keys())
 
-        print(
-            f"ID: {result['id']}, Similarity Score: {result['similarityScore']}"
-        )
-        if result['similarityScore'] <= 0.35:
-            if_succ = False
-            print("这里跳转到提示让他们填表单找礼物的功能")
-            return jsonify({
-                'code':
-                    '0001',
-                'data': {
-                    'result': None,
-                },
-                'msg':
-                    'The user\'s input is a description of the goods they need to purchase, but similarity score is too low. 请求推荐礼物, 但是礼物推荐的相似度太低, 推荐失败'
-            })
+    #     print(
+    #         f"ID: {result['id']}, Similarity Score: {result['similarityScore']}"
+    #     )
+    #     if result['similarityScore'] <= 0.35:
+    #         if_succ = False
+    #         print("这里跳转到提示让他们填表单找礼物的功能")
+    #         return jsonify({
+    #             'code':
+    #                 '0001',
+    #             'data': {
+    #                 'result': None,
+    #             },
+    #             'msg':
+    #                 'The user\'s input is a description of the goods they need to purchase, but similarity score is too low. 请求推荐礼物, 但是礼物推荐的相似度太低, 推荐失败'
+    #         })
 
     # 成功返回
     return jsonify({
@@ -164,7 +211,7 @@ def recommandGiftByUserInput(req):
             '0000',
         'data': {
     # 'result': results_list[0:3],
-            'result': results_list,
+            'result': productInfo,
         },
         'msg':
             'The user\'s input is a description of the goods they need to purchase, and recommand success. 请求推荐礼物, 推荐成功'

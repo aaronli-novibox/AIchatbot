@@ -14,20 +14,23 @@ from dotenv import load_dotenv
 from flask import current_app, g
 from flaskr.shp import *
 from flaskr.oai import *
-from flaskr.db import get_mongo_db,close_db
+from flaskr.db import get_mongo_db, close_db
+
 # from config import config
 
 # from .openai import get_openai_client
 
 
-def config(app):
-
-    load_dotenv()
-    app.config["SHOPIFY_API_KEY"] = os.getenv("SHOPIFY_API_KEY")
-    app.config["SHOPIFY_API_PASSWORD"] = os.getenv("SHOPIFY_API_PASSWORD")
-    app.config["SHOPIFY_SHOP_NAME"] = os.getenv("SHOPIFY_SHOP_NAME")
-    app.config["MONGO_URI"] = os.getenv("MONGO_URI")
-    app.config["OPENAI_KEY"] = os.getenv("OPENAI_KEY")
+# 假设这是你加载模型的函数
+def load_model():
+    # 加载模型
+    emb_model = FlagModel(os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        'services/aichatbot/models/models--BAAI--bge-large-zh-v1.5/snapshots/c11661ba3f9407eeb473765838eb4437e0f015c0'
+    ),
+                          query_instruction_for_retrieval="为这个句子生成表示以用于检索商品：",
+                          use_fp16=True)
+    return emb_model
 
 
 def create_app(test_config=None):
@@ -47,7 +50,7 @@ def create_app(test_config=None):
         # load the test config if passed in
         app.config.from_mapping(test_config)
 
-    # config(app)
+    app.config['MODEL'] = load_model()
 
     # router
     @app.before_request
@@ -57,161 +60,6 @@ def create_app(test_config=None):
         get_mongo_db()
         get_openai_service()
 
-        # path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-        #                     "db_files/orders_export_1.xlsx")
-
-        # path2 = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-        #                      "db_files/customers_export.xlsx")
-
-        # extract_excel(path, "orders")
-        # extract_excel(path2, "customers")
-
-        # json_data = [
-        #     {
-        #         "influencer_name":
-        #             "Buse Keskin",
-        #         "influencer_email":
-        #             "healthykitchenohio@gmail.com",
-        #         "promo_code":
-        #             "BUSEK10",
-        #         "contract_start":
-        #             "02-18-2024",
-        #         "contract_end":
-        #             "02-18-2025",
-        #         "product": [{
-        #             "product_sku": "BAL2308020W",
-        #             "product_name": "File Night Light white",
-        #             "commission": "15%",
-        #             "product_contract_start": "02-18-2024",
-        #             "product_contract_end": "02-18-2025"
-        #         }]
-        #     },
-        #     {
-        #         "influencer_name":
-        #             "Rachel Koehler",
-        #         "influencer_email":
-        #             "heart4ocr@gmail.com",
-        #         "promo_code":
-        #             "RACHELK10",
-        #         "contract_start":
-        #             "02-16-2024",
-        #         "contract_end":
-        #             "02-16-2025",
-        #         "product": [{
-        #             "product_sku": "BAL2308019W",
-        #             "product_name": "File Night mini Lamp white",
-        #             "commission": "15%",
-        #             "product_contract_start": "02-16-2024",
-        #             "product_contract_end": "02-16-2025"
-        #         }]
-        #     },
-        #     {
-        #         "influencer_name":
-        #             "Melinda Ly",
-        #         "influencer_email":
-        #             "businessmelly96@gmail.com",
-        #         "promo_code":
-        #             "MELINDAL10",
-        #         "contract_start":
-        #             "02-16-2024",
-        #         "contract_end":
-        #             "02-16-2025",
-        #         "product": [{
-        #             "product_sku": "BGS2308010B",
-        #             "product_name": "Sirius P5Earbuds",
-        #             "commission": "13%",
-        #             "product_contract_start": "02-16-2024",
-        #             "product_contract_end": "02-16-2025",
-        #         }, {
-        #             "product_sku": "BCT2308014L",
-        #             "product_name": "Mini Plunger-shaped Diffuser(Leather)",
-        #             "commission": "22%",
-        #             "product_contract_start": "02-16-2024",
-        #             "product_contract_end": "02-16-2025",
-        #         }]
-        #     },
-        #     {
-        #         "influencer_name":
-        #             "Hani Mak",
-        #         "influencer_email":
-        #             "hanigracework@gmail.com",
-        #         "promo_code":
-        #             "HANIK10",
-        #         "contract_start":
-        #             "02-16-2024",
-        #         "contract_end":
-        #             "02-16-2025",
-        #         "product": [{
-        #             "product_sku": "BAL2308018W",
-        #             "product_name": "Fila Night Desk Lamp white",
-        #             "commission": "15%",
-        #             "product_contract_start": "02-16-2024",
-        #             "product_contract_end": "02-16-2025"
-        #         }]
-        #     },
-        #     {
-        #         "influencer_name":
-        #             "Jessica west",
-        #         "influencer_email":
-        #             "collabwjess@gmail.com",
-        #         "promo_code":
-        #             "JESSICAW10",
-        #         "contract_start":
-        #             "02-16-2024",
-        #         "contract_end":
-        #             "02-16-2025",
-        #         "product": [{
-        #             "product_sku": "BAL2308018W",
-        #             "product_name": "Fila Night Desk Lamp white",
-        #             "commission": "15%",
-        #             "product_contract_start": "02-16-2024",
-        #             "product_contract_end": "02-16-2025"
-        #         }]
-        #     },
-        #     {
-        #         "influencer_name":
-        #             "Cassandra Farley",
-        #         "influencer_email":
-        #             None,
-        #         "promo_code":
-        #             "CASSANDRAF10",
-        #         "contract_start":
-        #             "03-01-2024",
-        #         "contract_end":
-        #             "03-01-2025",
-        #         "product": [{
-        #             "product_sku": "BGS2308010B",
-        #             "product_name": "Sirius P5Earbuds",
-        #             "commission": "13%",
-        #             "product_contract_start": "03-01-2024",
-        #             "product_contract_end": "03-01-2025"
-        #         }]
-        #     },
-        #     {
-        #         "influencer_name": "TrackerTest1",
-        #         "influencer_email": None,
-        #         "promo_code": "NOVIBOX20",
-        #         "contract_start": None,
-        #         "contract_end": None,
-        #         "product": []
-        #     },
-        #     {
-        #         "influencer_name": "TrackerTest2",
-        #         "influencer_email": None,
-        #         "promo_code": "UGC",
-        #         "contract_start": None,
-        #         "contract_end": None,
-        #         "product": []
-        #     },
-        #     {
-        #         "influencer_name": "TrackerTest3",
-        #         "influencer_email": None,
-        #         "promo_code": "WELCOME10",
-        #         "contract_start": None,
-        #         "contract_end": None,
-        #         "product": []
-        #     },
-        # ]
         # insertInfluencerData(json_data)
 
         # shopify_class = shoipfy_services()
@@ -223,9 +71,6 @@ def create_app(test_config=None):
     def after_request(response):
         close_db()
         close_openai_service()
-        import gc
-        gc.collect()    # 强制执行垃圾收集
-        print("garbage", gc.garbage)    # 打印无法回收的对象列表
 
         return response
 
@@ -237,14 +82,20 @@ def create_app(test_config=None):
         password = data.get('password')
 
         # Check if influencer_name or influencer_email already exists
-        influencers_collection = getNewInfluencerListFromMongoDB();
-        existing_user = influencers_collection.find_one(
-            {'$or': [{'influencer_name': influencer_name}, {'influencer_email': influencer_email}]})
+        influencers_collection = getNewInfluencerListFromMongoDB()
+        existing_user = influencers_collection.find_one({
+            '$or': [{
+                'influencer_name': influencer_name
+            }, {
+                'influencer_email': influencer_email
+            }]
+        })
         if existing_user:
             return jsonify({'error': 'User already exists'}), 400
 
         # Hash password
-        hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
+        hashed_password = generate_password_hash(password,
+                                                 method='pbkdf2:sha256')
 
         # Generate verification token
         verification_token = secrets.token_urlsafe(32)
@@ -257,7 +108,10 @@ def create_app(test_config=None):
         #     'verification_token': verification_token
         # })
 
-        return jsonify({'message': 'User registered successfully', 'role': 'editor'}), 201
+        return jsonify({
+            'message': 'User registered successfully',
+            'role': 'editor'
+        }), 201
 
     # Login
     @app.route('/login', methods=['POST'])
@@ -266,10 +120,15 @@ def create_app(test_config=None):
         influencer_identifier = data.get('email') or data.get('promocode')
         password = data.get('password')
 
-        influencers_collection = getNewInfluencerListFromMongoDB();
+        influencers_collection = getNewInfluencerListFromMongoDB()
         # Find user by influencer_name or influencer_email
-        user = influencers_collection.find_one(
-            {'$or': [{'promo_code': influencer_identifier}, {'influencer_email': influencer_identifier}]})
+        user = influencers_collection.find_one({
+            '$or': [{
+                'promo_code': influencer_identifier
+            }, {
+                'influencer_email': influencer_identifier
+            }]
+        })
         if not user:
             return jsonify({'error': 'User not found'}), 404
 
@@ -278,7 +137,10 @@ def create_app(test_config=None):
             return jsonify({'error': 'Invalid password'}), 401
 
         # Convert MongoDB documents to a JSON serializable format
-        user_data = {k: str(v) if isinstance(v, ObjectId) else v for k, v in user.items()}
+        user_data = {
+            k: str(v) if isinstance(v, ObjectId) else v
+            for k, v in user.items()
+        }
 
         return jsonify({'message': 'Login successful', 'user': user_data}), 200
 
@@ -289,7 +151,7 @@ def create_app(test_config=None):
         last = data.get('lastname')
         encode = (last[0].upper() + first[0].upper()).strip()
 
-        req = 'influencers'  # 'products' / 'customers
+        req = 'influencers'    # 'products' / 'customers
         url = f'https://back.noviboxweb.com/{req}'
 
         response = requests.get(url)
@@ -303,12 +165,20 @@ def create_app(test_config=None):
                 data = None
                 print("Bad request")
         else:
-            print(f"Error: Unable to fetch data. Status code: {response.status_code}")
+            print(
+                f"Error: Unable to fetch data. Status code: {response.status_code}"
+            )
 
-        username = [promo['promo_code'].replace(encode, "") for promo in data if
-                       promo['promo_code'].startswith(encode)]
+        username = [
+            promo['promo_code'].replace(encode, "")
+            for promo in data
+            if promo['promo_code'].startswith(encode)
+        ]
 
-        return jsonify({'message': 'Generate successful', 'promocode': encode}), 200
+        return jsonify({
+            'message': 'Generate successful',
+            'promocode': encode
+        }), 200
 
     @app.route('/promocode', methods=['POST'])
     def promo_generator():
@@ -317,7 +187,7 @@ def create_app(test_config=None):
         last = data.get('lastname')
         encode = (last[0].upper() + first[0].upper()).strip() + '_NOVIBOX_'
 
-        req = 'influencers'  # 'products' / 'customers
+        req = 'influencers'    # 'products' / 'customers
         url = f'https://back.noviboxweb.com/{req}'
 
         response = requests.get(url)
@@ -331,23 +201,31 @@ def create_app(test_config=None):
                 data = None
                 print("Bad request")
         else:
-            print(f"Error: Unable to fetch data. Status code: {response.status_code}")
+            print(
+                f"Error: Unable to fetch data. Status code: {response.status_code}"
+            )
 
-        promo_codes = [promo['promo_code'].replace(encode, "") for promo in data if
-                       promo['promo_code'].startswith(encode)]
+        promo_codes = [
+            promo['promo_code'].replace(encode, "")
+            for promo in data
+            if promo['promo_code'].startswith(encode)
+        ]
         if promo_codes:
             encode = encode + str(sorted(list(map(int, promo_codes)))[-1] + 1)
         else:
             encode = encode + "1"
 
-        return jsonify({'message': 'Generate successful', 'promocode': encode}), 200
+        return jsonify({
+            'message': 'Generate successful',
+            'promocode': encode
+        }), 200
 
     @app.route('/updatepromocode', methods=['POST'])
     def promo_change():
         data = request.get_json()
         encode = data.get('promocode')
 
-        req = 'influencers'  # 'products' / 'customers
+        req = 'influencers'    # 'products' / 'customers
         url = f'https://back.noviboxweb.com/{req}'
 
         response = requests.get(url)
@@ -361,15 +239,23 @@ def create_app(test_config=None):
                 data = None
                 print("Bad request")
         else:
-            print(f"Error: Unable to fetch data. Status code: {response.status_code}")
-        promo_codes = [promo['promo_code'].replace(encode, "") for promo in data if
-                       promo['promo_code'].startswith(encode)]
+            print(
+                f"Error: Unable to fetch data. Status code: {response.status_code}"
+            )
+        promo_codes = [
+            promo['promo_code'].replace(encode, "")
+            for promo in data
+            if promo['promo_code'].startswith(encode)
+        ]
         if promo_codes:
             encode = encode + str(sorted(list(map(int, promo_codes)))[-1] + 1)
         else:
             encode = encode + "1"
 
-        return jsonify({'message': 'Update successful', 'promocode': encode}), 200
+        return jsonify({
+            'message': 'Update successful',
+            'promocode': encode
+        }), 200
 
     # Forgot password endpoint
     @app.route('/forgot_password', methods=['POST'])
@@ -379,7 +265,8 @@ def create_app(test_config=None):
 
         # Check if user exists
         influencers_collection = getNewInfluencerListFromMongoDB()
-        user = influencers_collection.find_one({'influencer_email': influencer_email})
+        user = influencers_collection.find_one(
+            {'influencer_email': influencer_email})
         if not user:
             return jsonify({'error': 'User not found'}), 404
 
@@ -388,8 +275,11 @@ def create_app(test_config=None):
         hashed_password = generate_password_hash(new_password)
 
         # Update password in database
-        influencers_collection.update_one({'influencer_email': influencer_email},
-                                          {'$set': {'password': hashed_password}})
+        influencers_collection.update_one(
+            {'influencer_email': influencer_email},
+            {'$set': {
+                'password': hashed_password
+            }})
 
         return jsonify({'message': 'Password reset successfully'}), 200
 
@@ -398,7 +288,10 @@ def create_app(test_config=None):
         data = request.get_json()
         influencer_email = data.get('influencer_email')
 
-        return jsonify({'message': 'Password reset successfully', 'new_password': ""}), 200
+        return jsonify({
+            'message': 'Password reset successfully',
+            'new_password': ""
+        }), 200
 
     @app.route('/productlist')
     def get_user_products():
@@ -407,7 +300,8 @@ def create_app(test_config=None):
         if influencer_name is None:
             return jsonify({'message': 'Influencer name is required'}), 400
         influencers_collection = getNewInfluencerListFromMongoDB()
-        influencer_data = influencers_collection.find_one({'influencer_name': influencer_name})
+        influencer_data = influencers_collection.find_one(
+            {'influencer_name': influencer_name})
 
         # If no document is found, return an error response
         if influencer_data is None:

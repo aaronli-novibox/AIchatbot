@@ -1,0 +1,39 @@
+    fragment ProductInfo on Product {
+        id
+        title
+        description
+        productType
+        featuredImage{
+            url
+        }
+        onlineStorePreviewUrl
+        onlineStoreUrl
+        priceRangeV2{
+            maxVariantPrice{
+                amount
+                currencyCode
+            }
+            minVariantPrice{
+                amount
+                currencyCode
+            }
+        }
+
+    }
+
+    query GetManyProducts($product_ids: [ID!]!){
+        nodes(ids: $product_ids) {
+            ... on Product{
+                ...ProductInfo
+            }
+        }
+    }
+
+    query GetOneProduct($product_id: ID!){
+        node(id: $product_id){
+            ... on Product {
+            ...ProductInfo
+            }
+        }
+    }
+
