@@ -130,34 +130,24 @@ def recommandGiftByUserInput(req):
 
     user_typing = req["user_typing"]
 
-    prompt = f'''Here is a user's input:"{user_typing}", give me a list of 5 terms to describe the potential product. You must include the products mentioned in the input. The output must be a json'''
-    response = g.clientOpenAI.chat.completions.create(
+    content = f'''Here is a user's input:"{user_typing}", give me a list of 5 terms to describe the potential product. You must include the products mentioned in the input.'''
+
+    stream = g.clientOpenAI.chat.completions.create(
         model="gpt-4",
-        response_format={"type": "json_object"},    # 强制输出json
-        presence_penalty=1.1,
-        temperature=0,
         messages=[{
-            "role": "system",
-            "content": "You are designed to output JSON."
-        }, {
             "role": "user",
-            "content": prompt
-        }])
-    res = response.choices[0].message.content
-    #attrs= res.choices[0].message.content.replace('"','').replace("'","")[1:-1].lower().split(',')
-    #query = ','.join(attrs)
-    #query
-    import json
-    candidates = list(json.loads(res).values())[0]
-    typing_string_ = "It is " + ", ".join(candidates)
+            "content": content
+        }],
+        stream=True,
+    )
 
-    # # match the user flow's branch
-    # typing_string_ = ""
-    # for chunk in stream:
-    #     if chunk.choices[0].delta.content is not None:
-    #         typing_string_ = typing_string_ + chunk.choices[0].delta.content
-    #         print(chunk.choices[0].delta.content, end='')
-
+    # match the user flow's branch
+    typing_string_ = ""
+    for chunk in stream:
+        if chunk.choices[0].delta.content is not None:
+            typing_string_ = typing_string_ + chunk.choices[0].delta.content
+            print(chunk.choices[0].delta.content, end='')
+    print(typing_string_)
     os.path.join(os.path.dirname(__file__), 'models/bge-large-zh-v1.5')
     # 初始化 FlagModel
     emb_model = current_app.config['MODEL']
@@ -171,7 +161,7 @@ def recommandGiftByUserInput(req):
             "path": "description_vector",
             "queryVector": query_vector,
             "numCandidates": 50,
-            "limit": 5,
+            "limit": 10,
         }
     }, {
         "$addFields": {
