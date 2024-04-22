@@ -22,11 +22,11 @@ def flatten_data(data):
         # elif "products" in data:
         #     return flatten_data(data["products"])
         elif "nodes" in data:
-            return [
-                flatten_data(item)
-                for item in data["nodes"]
-                if flatten_data(item)
-            ]
+            res = []
+            for item in data["nodes"]:
+                if flatten_data(item):
+                    res.append(flatten_data(item))
+            return res
         elif "onlineStoreUrl" in data and data.get('onlineStoreUrl') is None:
             return None
         else:
@@ -152,6 +152,8 @@ def recommandGiftByUserInput(req):
         if chunk.choices[0].delta.content is not None:
             typing_string_ = typing_string_ + chunk.choices[0].delta.content
             print(chunk.choices[0].delta.content, end='')
+
+    end_time = time.time()
 
     os.path.join(os.path.dirname(__file__), 'models/bge-large-zh-v1.5')
     # 初始化 FlagModel
