@@ -22,10 +22,15 @@ def flatten_data(data):
             return flatten_data(data["products"])
         elif "nodes" in data:
             return [flatten_data(item) for item in data["nodes"]]
+
         else:
             return {k: flatten_data(v) for k, v in data.items()}
     elif isinstance(data, list):
-        return [flatten_data(item) for item in data]
+        return [
+            flatten_data(item)
+            for item in data
+            if item.get('onlineStoreUrl') is not None
+        ]
     else:
         return data
 
@@ -124,11 +129,29 @@ def userTyping(req):
 def recommandGiftByUserInput(req):
 
     user_typing = req["user_typing"]
+
+    content = f'''Here is a user's input:"{user_typing}", give me a list of 5 terms to describe the potential product. You must include the products mentioned in the input. The output must be a json'''
+    stream = g.clientOpenAI.chat.completions.create(
+        model="gpt-4",
+        messages=[{
+            "role": "user",
+            "content": content
+        }],
+        stream=True,
+    )
+
+    # match the user flow's branch
+    typing_string_ = ""
+    for chunk in stream:
+        if chunk.choices[0].delta.content is not None:
+            typing_string_ = typing_string_ + chunk.choices[0].delta.content
+            print(chunk.choices[0].delta.content, end='')
+
     os.path.join(os.path.dirname(__file__), 'models/bge-large-zh-v1.5')
     # 初始化 FlagModel
     emb_model = current_app.config['MODEL']
 
-    query_vector = emb_model.encode(user_typing).astype(np.float64).tolist()
+    query_vector = emb_model.encode(typing_string_).astype(np.float64).tolist()
 
     # 构建聚合查询
     query = [{
@@ -137,7 +160,7 @@ def recommandGiftByUserInput(req):
             "path": "description_vector",
             "queryVector": query_vector,
             "numCandidates": 50,
-            "limit": 10,
+            "limit": 15,
         }
     }, {
         "$addFields": {
