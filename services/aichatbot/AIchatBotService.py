@@ -154,6 +154,10 @@ def recommandGiftByUserInput(req):
             print(chunk.choices[0].delta.content, end='')
 
     end_time = time.time()
+    current_app.logger.info(
+        f"Time taken to generate description: {end_time - start} seconds")
+
+    start_time = time.time()
 
     os.path.join(os.path.dirname(__file__), 'models/bge-large-zh-v1.5')
     # 初始化 FlagModel
@@ -183,10 +187,15 @@ def recommandGiftByUserInput(req):
     # 假设 results 是从 MongoDB 查询得到的结果
     results_list = list(results)    # 将 CommandCursor 对象转换为列表
 
+    end_time = time.time()
+    current_app.logger.info(
+        f"Time taken to query Milvus: {end_time - start_time} seconds")
+
     # 提取前三个结果的id，top_three_ids用来记录出现过的商品，不重复推荐
     # top_three_ids = [result['id'] for result in results_list[:3]]
     # print(top_three_ids)
 
+    start_time = time.time()
     # 连接shopify
     shop_url = f"{current_app.config['SHOPIFY_SHOP_NAME']}.myshopify.com"
     api_version = '2024-01'
@@ -214,6 +223,10 @@ def recommandGiftByUserInput(req):
 
     productInfo = json.loads(productInfo)
     productInfo = flatten_data(productInfo)
+
+    end_time = time.time()
+    current_app.logger.info(
+        f"Time taken to query Shopify: {end_time - start_time} seconds")
 
     # 打印结果
     # for result in results_list[0:3]:
