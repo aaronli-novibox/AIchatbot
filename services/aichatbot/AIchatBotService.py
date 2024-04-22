@@ -21,14 +21,19 @@ def flatten_data(data):
         elif "products" in data:
             return flatten_data(data["products"])
         elif "nodes" in data:
-            return [flatten_data(item) for item in data["nodes"]]
-
-        else:
-            return {
-                k: flatten_data(v)
-                for k, v in data.items()
-                if data.get('onlineStoreUrl') is not None
-            }
+            return [
+                flatten_data(item)
+                for item in data["nodes"]
+                if flatten_data(item)
+            ]
+        elif "onlineStoreUrl" in data and data.get(
+                'onlineStoreUrl') is not None:
+            return {k: flatten_data(v) for k, v in data.items()}
+        # else:
+        #     return {
+        #         k: flatten_data(v) for k, v in data.items()
+        #     # if data.get('onlineStoreUrl') is not None
+        #     }
     elif isinstance(data, list):
         return [flatten_data(item) for item in data]
     else:
@@ -130,7 +135,7 @@ def recommandGiftByUserInput(req):
 
     user_typing = req["user_typing"]
 
-    content = f'''Here is a user's input:"{user_typing}", give me a list of 5 terms to describe the potential product. You must include the products mentioned in the input.'''
+    content = f'''Here is a user's input:"{user_typing}", give me a list of 10 terms to describe the potential product. You must include the products mentioned in the input.'''
 
     stream = g.clientOpenAI.chat.completions.create(
         model="gpt-4",
@@ -147,7 +152,7 @@ def recommandGiftByUserInput(req):
         if chunk.choices[0].delta.content is not None:
             typing_string_ = typing_string_ + chunk.choices[0].delta.content
             print(chunk.choices[0].delta.content, end='')
-    print(typing_string_)
+
     os.path.join(os.path.dirname(__file__), 'models/bge-large-zh-v1.5')
     # 初始化 FlagModel
     emb_model = current_app.config['MODEL']
@@ -196,7 +201,6 @@ def recommandGiftByUserInput(req):
             del results_list[i]['_id']
         ids.append(results_list[i]['id'])
 
-    print(ids)
     script_path = os.path.abspath(__file__)
     script_dir = os.path.dirname(script_path)
     document = Path(os.path.join(script_dir,
