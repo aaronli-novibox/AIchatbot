@@ -29,11 +29,11 @@ def flatten_data(data):
         elif "onlineStoreUrl" in data and data.get(
                 'onlineStoreUrl') is not None:
             return {k: flatten_data(v) for k, v in data.items()}
-        # else:
-        #     return {
-        #         k: flatten_data(v) for k, v in data.items()
-        #     # if data.get('onlineStoreUrl') is not None
-        #     }
+        else:
+            return {
+                k: flatten_data(v) for k, v in data.items()
+            # if data.get('onlineStoreUrl') is not None
+            }
     elif isinstance(data, list):
         return [flatten_data(item) for item in data]
     else:
