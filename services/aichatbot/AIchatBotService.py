@@ -7,6 +7,7 @@ import os
 import shopify
 from pathlib import Path
 import json
+import time
 
 
 def flatten_data(data):
@@ -16,19 +17,18 @@ def flatten_data(data):
     if isinstance(data, dict):
         if "data" in data:
             return flatten_data(data["data"])
-        elif "node" in data:
-            return flatten_data(data["node"])
-        elif "products" in data:
-            return flatten_data(data["products"])
+        # elif "node" in data:
+        #     return flatten_data(data["node"])
+        # elif "products" in data:
+        #     return flatten_data(data["products"])
         elif "nodes" in data:
             return [
                 flatten_data(item)
                 for item in data["nodes"]
                 if flatten_data(item)
             ]
-        elif "onlineStoreUrl" in data and data.get(
-                'onlineStoreUrl') is not None:
-            return {k: flatten_data(v) for k, v in data.items()}
+        elif "onlineStoreUrl" in data and data.get('onlineStoreUrl') is None:
+            return None
         else:
             return {
                 k: flatten_data(v) for k, v in data.items()
@@ -136,7 +136,7 @@ def recommandGiftByUserInput(req):
     user_typing = req["user_typing"]
 
     content = f'''Here is a user's input:"{user_typing}", give me a list of 10 terms to describe the potential product. You must include the products mentioned in the input.'''
-
+    start = time.time()
     stream = g.clientOpenAI.chat.completions.create(
         model="gpt-4",
         messages=[{
