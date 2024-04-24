@@ -395,9 +395,9 @@ def create_app(test_config=None):
 
         # Check if user exists
         influencers_collection = getNewInfluencerListFromMongoDB()
-        # user = influencers_collection.find_one({'influencer_email': influencer_email})
-        # if not user:
-        #     return jsonify({'error': 'User not found'}), 404
+        user = influencers_collection.find_one({'influencer_email': influencer_email})
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
         
         token = s.dumps(influencer_email, salt='email-reset')
         msg = Message('Password Reset Request', sender=app.config['MAIL_USERNAME'], recipients=[influencer_email])
@@ -410,16 +410,6 @@ def create_app(test_config=None):
         except Exception as e:
             print(e)
             return 500  # Email sending failed
-        
-        # # Generate new password
-        # new_password = secrets.token_urlsafe(8)
-        # hashed_password = generate_password_hash(new_password)
-
-        # # Update password in database
-        # influencers_collection.update_one({'influencer_email': influencer_email},
-        #                                   {'$set': {'password': hashed_password}})
-
-        # return jsonify({'message': 'Password reset successfully'}), 200
     
     @app.route('/reset/<token>', methods=['GET', 'POST'])
     def reset_with_token(token):
