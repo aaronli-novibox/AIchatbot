@@ -5,7 +5,7 @@ from datetime import datetime
 # return cursor type, and filter '_id' field
 def getProductListFromMongoDB():
     product_collection = g.db['test2']["products"]
-    documents = product_collection.find({}, {'_id': 0, 'description_vector': 0})
+    documents = product_collection.find({}, {'_id': 0})
 
     return documents
 
@@ -37,6 +37,11 @@ def getNewInfluencerListFromMongoDB():
     influencer_collection = g.db['test2']["new_influencers"]
 
     return influencer_collection
+
+def countInfluencers():
+    influencer_collection = getNewInfluencerListFromMongoDB()
+    count = influencer_collection.count_documents({})
+    return count
 
 
 def insertInfluencerData(influencer_data):
