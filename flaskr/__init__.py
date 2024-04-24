@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, url_for, render_template
 from services.mongo import *
 from services.aichatbot.AIchatBotService import *
 from services.mongo.MongoService import *
@@ -15,6 +15,10 @@ from flask import current_app, g
 from flaskr.shp import *
 from flaskr.oai import *
 from flaskr.db import get_mongo_db,close_db
+from flask_mail import Mail, Message
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired
+import json
+
 # from config import config
 
 # from .openai import get_openai_client
@@ -47,7 +51,19 @@ def create_app(test_config=None):
         # load the test config if passed in
         app.config.from_mapping(test_config)
 
-    # config(app)
+    #config(app)
+    #configure for email send
+    app.config['SECRET_KEY'] = 'SECRETKEY'
+    app.config['MAIL_SERVER'] = 'smtp.googlemail.com'
+    app.config['MAIL_PORT'] = 587
+    app.config['MAIL_USE_TLS'] = True
+    app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')  # Set in your environment variables
+    app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')  # Set in your environment variables
+    app.config['TESTING'] = False
+    mail = Mail(app)
+
+    # Serializer for creating the token
+    s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
     # router
     @app.before_request
@@ -379,19 +395,49 @@ def create_app(test_config=None):
 
         # Check if user exists
         influencers_collection = getNewInfluencerListFromMongoDB()
-        user = influencers_collection.find_one({'influencer_email': influencer_email})
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
+        # user = influencers_collection.find_one({'influencer_email': influencer_email})
+        # if not user:
+        #     return jsonify({'error': 'User not found'}), 404
+        
+        token = s.dumps(influencer_email, salt='email-reset')
+        msg = Message('Password Reset Request', sender=app.config['MAIL_USERNAME'], recipients=[influencer_email])
+        link = url_for('reset_with_token', token=token, _external=True)
+        #msg.body = f'Your link to reset your password is {link}'
+        msg.html = render_template('email/email_template.html', link=link, username="Test")
+        try:
+            mail.send(msg)
+            return jsonify({'message': 'Email Sent'}), 200  # Email sent successfully
+        except Exception as e:
+            print(e)
+            return 500  # Email sending failed
+        
+        # # Generate new password
+        # new_password = secrets.token_urlsafe(8)
+        # hashed_password = generate_password_hash(new_password)
 
-        # Generate new password
-        new_password = secrets.token_urlsafe(8)
-        hashed_password = generate_password_hash(new_password)
+        # # Update password in database
+        # influencers_collection.update_one({'influencer_email': influencer_email},
+        #                                   {'$set': {'password': hashed_password}})
 
-        # Update password in database
-        influencers_collection.update_one({'influencer_email': influencer_email},
-                                          {'$set': {'password': hashed_password}})
+        # return jsonify({'message': 'Password reset successfully'}), 200
+    
+    @app.route('/reset/<token>', methods=['GET', 'POST'])
+    def reset_with_token(token):
+        try:
+            email = s.loads(token, salt='email-reset', max_age=1800)  # Token is valid for 30 min
+        except SignatureExpired:
+            return jsonify({'message': 'Token Expired'}), 404
+        
+        if request.method == 'POST':
+            data = request.get_json()
+            password = data.get('password')
+            hashed_password = generate_password_hash(password)
+            influencers_collection = getNewInfluencerListFromMongoDB()
+            influencers_collection.update_one({'influencer_email': email},
+                                              {'$set': {'password': hashed_password}})
+            return jsonify({'message': 'Password reset successfully'}), 200 
+        return render_template('reset_with_token.html', token=token)
 
-        return jsonify({'message': 'Password reset successfully'}), 200
 
     @app.route('/userdash')
     def get_userbroad():
@@ -404,16 +450,14 @@ def create_app(test_config=None):
     def get_user_products():
         data = request.get_json()
         influencer_name = data.get('influencer_name')
-        if influencer_name is None:
+        if not influencer_name :
             return jsonify({'message': 'Influencer name is required'}), 400
-        influencers_collection = getNewInfluencerListFromMongoDB()
-        influencer_data = influencers_collection.find_one({'influencer_name': influencer_name})
-
-        # If no document is found, return an error response
-        if influencer_data is None:
-            return jsonify({'message': 'Influencer not has products'}), 200
-
-        products_list = influencer_data.get('product', [])
+        products_list = getInflencerProductList(influencer_name)
+        
+        if not products_list:
+            return jsonify({'message': 'Influencer not has products'}), 400
+        
+        print("product success")
 
         return jsonify({
             'code': '0000',
