@@ -18,7 +18,6 @@ def getOrderListFromMongoDB():
 
 
 def getCustomerListFromMongoDB():
-
     customer_collection = g.db['test2']["customers"]
     documents = customer_collection.find({}, {'_id': 0})
 
@@ -26,17 +25,23 @@ def getCustomerListFromMongoDB():
 
 
 def getInfluencerListFromMongoDB():
-
     customer_collection = g.db['test2']["influencers"]
     documents = customer_collection.find({}, {'_id': 0})
 
     return documents
 
-def getNewInfluencerListFromMongoDB():
 
+def getNewInfluencerListFromMongoDB():
     influencer_collection = g.db['test2']["new_influencers"]
 
     return influencer_collection
+
+
+def getOrdersFromMongoDB():
+    order_collection = g.db['test2']["new_filled_orders"]
+
+    return order_collection
+
 
 def countInfluencers():
     influencer_collection = getNewInfluencerListFromMongoDB()
@@ -45,7 +50,6 @@ def countInfluencers():
 
 
 def insertInfluencerData(influencer_data):
-
     promo_codes = [data['promo_code'] for data in influencer_data]
 
     influencer_collection = g.db['test2']["influencers"]
@@ -60,33 +64,40 @@ def insertInfluencerData(influencer_data):
         influencer_collection.insert_many(influencer_data)
         print("Data inserted successfully.")
         return 1
-    
-def getInflencerProductList(influencer_name):
+
+
+def getInflencerProductList(influencer_name, search_term=''):
     # Get Influencers Infor and products
     influencers_collection = g.db['test2']["new_influencers"]
-    influencer_info = influencers_collection.find_one({'influencer_name': influencer_name} , {'product': 1, 'promo_code': 1})
+    influencer_info = influencers_collection.find_one({'influencer_name': influencer_name},
+                                                      {'product': 1, 'promo_code': 1})
     if influencer_info is None:
         print(f"No influncer found with name {influencer_name}")
-        return 
+        return
     signed_products = influencer_info['product']
-    #promo_code = influencer_info['promo_code']
+    # promo_code = influencer_info['promo_code']
 
-    #Get all products
+    # Get all products
     products_collection = g.db['test2']["products"]
-    products = products_collection.find({} , {'title': 1, '_id':0})
+    if search_term:
+        regex_pattern = f".*{search_term}.*"  # Create a regex pattern for fuzzy search
+        products = products_collection.find({"title": {"$regex": regex_pattern, "$options": "i"}},
+                                            {'title': 1, '_id': 0})
+    else:
+        products = products_collection.find({}, {'title': 1, '_id': 0})
     products = list(products)
     for product in products:
-        #Initiate atrributes
+        # Initiate atrributes
         product['commission_rate'] = '8%'
         product['status'] = False
         product['product_sku'] = None
         product['start_time'] = None
         product['end_time'] = None
-        #product['total_products_purchased'] = 0
-        #product['earnings_per_product'] = 0
-        #product['total_commission'] = 0
+        # product['total_products_purchased'] = 0
+        # product['earnings_per_product'] = 0
+        # product['total_commission'] = 0
 
-        #check if the product is signed with a commission rate
+        # check if the product is signed with a commission rate
         is_signed = next((item for item in signed_products if item['product_name'] == product['title']), None)
         if is_signed is not None:
             product['status'] = True
@@ -94,7 +105,6 @@ def getInflencerProductList(influencer_name):
             product['commission_rate'] = is_signed['commission']
             product['start_time'] = is_signed['product_contract_start']
             product['end_time'] = is_signed['product_contract_end']
-
 
     # # Get orders with promo code
     # orders = g.db['test2']['new_filled_orders']

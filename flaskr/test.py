@@ -14,8 +14,22 @@ if __name__ == '__main__':
         pipeline = [
             {"$match": {}},  # Match all documents
             {"$addFields": {
+                "first_name": "",  # Placeholder for first name
+                "middle_name": "",  # Placeholder for middle name
+                "last_name": "",  # Placeholder for last name
+                "country": "",  # Placeholder for country
+                "city_state": "",  # Placeholder for city and state
+                "age": "",  # Placeholder for age
+                "audience": [],  # Placeholder for age
+                "phone": "",  # Placeholder for phone number
+                "shipping_address": "",  # Placeholder for shipping address
+                "collaboration": [],  # Placeholder for collaboration, expecting an array
+                "niche": [],
                 "password": hashed_password,
-                "role": "editor"  # Set default role to "editor"
+                "type":"",
+                "bio": "",
+                "avatar": None,
+                "role": "influencer"  # Set default role to "influencer"
             }},
             {"$out": "new_influencers"}  # Output to new collection
         ]
@@ -33,7 +47,46 @@ if __name__ == '__main__':
             'contract_end': None,
             'product': [],
             "password": admin_password,
-            "role": "admin"
+            "role": "admin",
+            "first_name": "admin",  # Placeholder for first name
+            "middle_name": "",  # Placeholder for middle name
+            "last_name": "",  # Placeholder for last name
+            "country": "US",  # Placeholder for country
+            "city_state": "",  # Placeholder for city and state
+            "age": "",  # Placeholder for age
+            "audience": [],
+            "phone": "",  # Placeholder for phone number
+            "shipping_address": "",  # Placeholder for shipping address
+            "collaboration": [],  # Placeholder for collaboration, expecting an array
+            "niche": [],
+            "avatar": None,
+            "bio": "",
+        })
+
+        # Insert a new influencer with influencer role
+        admin_password = generate_password_hash("123456", method='pbkdf2:sha256')
+        db["new_influencers"].insert_one({
+            "influencer_name": "Hula",
+            "influencer_email": "mengzhimin5@gmail.com",
+            "promo_code": "ADMIN_NOVBOX_0",
+            'contract_start': None,
+            'contract_end': None,
+            'product': [],
+            "password": hashed_password,
+            "role": "influencer",
+            "first_name": "admin",  # Placeholder for first name
+            "middle_name": "",  # Placeholder for middle name
+            "last_name": "",  # Placeholder for last name
+            "country": "US",  # Placeholder for country
+            "city_state": "",  # Placeholder for city and state
+            "age": "",  # Placeholder for age
+            "audience": [],
+            "phone": "",  # Placeholder for phone number
+            "shipping_address": "",  # Placeholder for shipping address
+            "collaboration": [],  # Placeholder for collaboration, expecting an array
+            "niche": [],
+            "avatar": None,
+            "bio": "",
         })
 
         print("Influencers table copied to new collection 'new_influencers' and admin added.")
