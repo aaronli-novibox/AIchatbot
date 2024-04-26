@@ -32,6 +32,7 @@ def config(app):
     app.config["SHOPIFY_SHOP_NAME"] = os.getenv("SHOPIFY_SHOP_NAME")
     app.config["MONGO_URI"] = os.getenv("MONGO_URI")
     app.config["OPENAI_KEY"] = os.getenv("OPENAI_KEY")
+    app.config["BASEURL"] = os.getenv("BASEURL")
 
 
 def create_app(test_config=None):
@@ -394,14 +395,17 @@ def create_app(test_config=None):
         influencer_email = data.get('influencer_email')
 
         # Check if user exists
-        influencers_collection = getNewInfluencerListFromMongoDB()
-        user = influencers_collection.find_one({'influencer_email': influencer_email})
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
+        # influencers_collection = getNewInfluencerListFromMongoDB()
+        # user = influencers_collection.find_one({'influencer_email': influencer_email})
+        # if not user:
+        #     return jsonify({'error': 'User not found'}), 404
         
         token = s.dumps(influencer_email, salt='email-reset')
         msg = Message('Password Reset Request', sender=app.config['MAIL_USERNAME'], recipients=[influencer_email])
-        link = url_for('reset_with_token', token=token, _external=True)
+        reset_path = '/session/reset-password/' + token
+        ## Change to real Domain
+        domain = app.config["BASEURL"]
+        link = f"{domain}{reset_path}"
         #msg.body = f'Your link to reset your password is {link}'
         msg.html = render_template('email/email_template.html', link=link, username="Test")
         try:
@@ -426,7 +430,7 @@ def create_app(test_config=None):
             influencers_collection.update_one({'influencer_email': email},
                                               {'$set': {'password': hashed_password}})
             return jsonify({'message': 'Password reset successfully'}), 200 
-        return render_template('reset_with_token.html', token=token)
+        return jsonify({'message': 'Token Valid'}), 200
 
 
     @app.route('/userdash')
