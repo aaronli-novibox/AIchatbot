@@ -2,7 +2,6 @@ from flask import g, current_app, jsonify
 from FlagEmbedding import FlagModel
 import numpy as np
 import re
-from FlagEmbedding import FlagModel
 import os
 import shopify
 from pathlib import Path
@@ -159,31 +158,53 @@ def recommandGiftByUserInput(req):
 
     start_time = time.time()
 
-    os.path.join(os.path.dirname(__file__), 'models/bge-large-zh-v1.5')
     # 初始化 FlagModel
     emb_model = current_app.config['MODEL']
 
     query_vector = emb_model.encode(typing_string_).astype(np.float64).tolist()
 
     # 构建聚合查询
-    query = [{
-        "$vectorSearch": {
-            "index": "vector_index",
-            "path": "description_vector",
-            "queryVector": query_vector,
-            "numCandidates": 50,
-            "limit": 10,
-        }
-    }, {
-        "$addFields": {
-            "similarityScore": {
-                "$meta": "vectorSearchScore"
+    query = [
+        {
+            "$match": {
+                "status": "ACTIVE"    # 先筛选状态为ACTIVE的文档
+            }
+        },
+        {
+            "$vectorSearch": {
+                "index": "vector_index",
+                "path": "descriptionVector",
+                "queryVector": query_vector,
+                "cosine": True,
+                "numCandidates": 50,
+                "limit": 10
+            }
+        },
+        {
+            "$addFields": {
+                "similarityScore": {
+                    "$meta": "vectorSearchScore"
+                }
+            }
+        },
+        {
+            "$project": {
+                "descriptionVector": 0,
+                "description": 1,
+                "featureImage": 1,
+                "shopify_id": 1,
+                "onlineStoreUrl": 1,
+                "priceRangeV2": 1,
+                "tags": 1,
+                "title": 1,
+                "productType": 1,
+                "_id": 0
             }
         }
-    }]
+    ]
 
     # 执行查询
-    results = g.db.test2.products.aggregate(query)
+    results = g.db.dev.product.aggregate(query)
     # 假设 results 是从 MongoDB 查询得到的结果
     results_list = list(results)    # 将 CommandCursor 对象转换为列表
 
@@ -191,42 +212,11 @@ def recommandGiftByUserInput(req):
     current_app.logger.info(
         f"Time taken to query Milvus: {end_time - start_time} seconds")
 
+    results_list = json.loads(results_list)
+
     # 提取前三个结果的id，top_three_ids用来记录出现过的商品，不重复推荐
     # top_three_ids = [result['id'] for result in results_list[:3]]
     # print(top_three_ids)
-
-    start_time = time.time()
-    # 连接shopify
-    shop_url = f"{current_app.config['SHOPIFY_SHOP_NAME']}.myshopify.com"
-    api_version = '2024-01'
-    private_app_password = current_app.config['SHOPIFY_API_PASSWORD']
-    session = shopify.Session(shop_url, api_version, private_app_password)
-    shopify.ShopifyResource.activate_session(session)
-
-    ids = []
-
-    for i in range(len(results_list)):
-        if 'description_vector' in results_list[i].keys():
-            del results_list[i]['description_vector']
-        if '_id' in results_list[i].keys():
-            del results_list[i]['_id']
-        ids.append(results_list[i]['id'])
-
-    script_path = os.path.abspath(__file__)
-    script_dir = os.path.dirname(script_path)
-    document = Path(os.path.join(script_dir,
-                                 "laohuji_query.graphql")).read_text()
-
-    productInfo = shopify.GraphQL().execute(query=document,
-                                            variables={"product_ids": ids},
-                                            operation_name="GetManyProducts")
-
-    productInfo = json.loads(productInfo)
-    productInfo = flatten_data(productInfo)
-
-    end_time = time.time()
-    current_app.logger.info(
-        f"Time taken to query Shopify: {end_time - start_time} seconds")
 
     # 打印结果
     # for result in results_list[0:3]:
@@ -254,7 +244,7 @@ def recommandGiftByUserInput(req):
             '0000',
         'data': {
     # 'result': results_list[0:3],
-            'result': productInfo,
+            'result': results_list,
         },
         'msg':
             'The user\'s input is a description of the goods they need to purchase, and recommand success. 请求推荐礼物, 推荐成功'

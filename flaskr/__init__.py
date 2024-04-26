@@ -1,4 +1,5 @@
 import os
+from FlagEmbedding.flag_models import FlagModel
 from flask import Flask, jsonify, request
 from services.mongo import *
 from services.aichatbot.AIchatBotService import *
@@ -22,14 +23,16 @@ from flaskr.db import get_mongo_db, close_db
 
 
 # 假设这是你加载模型的函数
-def load_model():
+def load_model() -> FlagModel:
     # 加载模型
-    emb_model = FlagModel(os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        'services/aichatbot/models/models--BAAI--bge-large-zh-v1.5/snapshots/c11661ba3f9407eeb473765838eb4437e0f015c0'
-    ),
-                          query_instruction_for_retrieval="为这个句子生成表示以用于检索商品：",
-                          use_fp16=True)
+    emb_model = FlagModel(
+        os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            'services/aichatbot/models/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09'
+        ),
+        query_instruction_for_retrieval=
+        "Generate a representation for this sentence for retrieving items:",
+        use_fp16=True)
     return emb_model
 
 
