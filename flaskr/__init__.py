@@ -14,7 +14,7 @@ from bson import binary
 from io import BytesIO
 
 from dotenv import load_dotenv
-from flask import g, request, redirect, url_for, jsonify
+from flask import g, request, redirect, url_for, jsonify, render_template
 from flaskr.shp import *
 from flaskr.oai import *
 from flaskr.db import get_mongo_db,close_db
@@ -89,7 +89,6 @@ def create_app(test_config=None):
     @app.route('/register', methods=['POST'])
     def register():
         data = request.form
-        file = request.files['avatar']
         file = request.files.get('avatar')
 
         if file:
@@ -214,6 +213,7 @@ def create_app(test_config=None):
         return jsonify({'isUnique': isUnique}), 200
 
     @app.route('/promocode', methods=['POST'])
+    @validate_json('firstname', 'lastname')
     def promo_generator():
         data = request.get_json()
         first = data.get('firstname')
@@ -230,7 +230,7 @@ def create_app(test_config=None):
         else:
             new_number = 1
 
-        return jsonify({'message': 'Generate successful', 'promocode': encode}), 200
+        full_promo_code = encode + str(new_number)
 
         return jsonify({'message': 'Generate successful', 'promocode': full_promo_code}), 200
 
@@ -341,49 +341,49 @@ def create_app(test_config=None):
             'products': products_list
         }), 200
 
-    # # Forgot password endpoint
-    # @app.route('/forgot_password', methods=['POST'])
-    # def forgot_password():
-    #     data = request.get_json()
-    #     influencer_email = data.get('influencer_email')
-    #
-    #     # Check if user exists
-    #     # influencers_collection = getNewInfluencerListFromMongoDB()
-    #     # user = influencers_collection.find_one({'influencer_email': influencer_email})
-    #     # if not user:
-    #     #     return jsonify({'error': 'User not found'}), 404
-    #
-    #     token = s.dumps(influencer_email, salt='email-reset')
-    #     msg = Message('Password Reset Request', sender=app.config['MAIL_USERNAME'], recipients=[influencer_email])
-    #     reset_path = '/session/reset-password/' + token
-    #     ## Change to real Domain
-    #     domain = app.config["BASEURL"]
-    #     link = f"{domain}{reset_path}"
-    #     #msg.body = f'Your link to reset your password is {link}'
-    #     msg.html = render_template('email/email_template.html', link=link, username="Test")
-    #     try:
-    #         mail.send(msg)
-    #         return jsonify({'message': 'Email Sent'}), 200  # Email sent successfully
-    #     except Exception as e:
-    #         print(e)
-    #         return 500  # Email sending failed
-    #
-    # @app.route('/reset/<token>', methods=['GET', 'POST'])
-    # def reset_with_token(token):
-    #     try:
-    #         email = s.loads(token, salt='email-reset', max_age=1800)  # Token is valid for 30 min
-    #     except SignatureExpired:
-    #         return jsonify({'message': 'Token Expired'}), 404
-    #
-    #     if request.method == 'POST':
-    #         data = request.get_json()
-    #         password = data.get('password')
-    #         hashed_password = generate_password_hash(password)
-    #         influencers_collection = getNewInfluencerListFromMongoDB()
-    #         influencers_collection.update_one({'influencer_email': email},
-    #                                           {'$set': {'password': hashed_password}})
-    #         return jsonify({'message': 'Password reset successfully'}), 200
-    #     return jsonify({'message': 'Token Valid'}), 200
+    # Forgot password endpoint
+    @app.route('/forgot_password', methods=['POST'])
+    def forgot_password():
+        data = request.get_json()
+        influencer_email = data.get('influencer_email')
+
+        # Check if user exists
+        # influencers_collection = getNewInfluencerListFromMongoDB()
+        # user = influencers_collection.find_one({'influencer_email': influencer_email})
+        # if not user:
+        #     return jsonify({'error': 'User not found'}), 404
+
+        token = s.dumps(influencer_email, salt='email-reset')
+        msg = Message('Password Reset Request', sender=app.config['MAIL_USERNAME'], recipients=[influencer_email])
+        reset_path = '/session/reset-password/' + token
+        ## Change to real Domain
+        domain = app.config["BASEURL"]
+        link = f"{domain}{reset_path}"
+        #msg.body = f'Your link to reset your password is {link}'
+        msg.html = render_template('email/email_template.html', link=link, username="Test")
+        try:
+            mail.send(msg)
+            return jsonify({'message': 'Email Sent'}), 200  # Email sent successfully
+        except Exception as e:
+            print(e)
+            return 500  # Email sending failed
+
+    @app.route('/reset/<token>', methods=['GET', 'POST'])
+    def reset_with_token(token):
+        try:
+            email = s.loads(token, salt='email-reset', max_age=1800)  # Token is valid for 30 min
+        except SignatureExpired:
+            return jsonify({'message': 'Token Expired'}), 404
+
+        if request.method == 'POST':
+            data = request.get_json()
+            password = data.get('password')
+            hashed_password = generate_password_hash(password)
+            influencers_collection = getNewInfluencerListFromMongoDB()
+            influencers_collection.update_one({'influencer_email': email},
+                                              {'$set': {'password': hashed_password}})
+            return jsonify({'message': 'Password reset successfully'}), 200
+        return jsonify({'message': 'Token Valid'}), 200
 
     @app.route('/productlist', methods=['POST'])
     @validate_json('influencer_name', 'role')
