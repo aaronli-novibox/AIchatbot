@@ -198,6 +198,7 @@ def recommandGiftByUserInput(req):
                 "tags": 1,
                 "title": 1,
                 "productType": 1,
+                "featuredImage": 1,
             }
         }
     ]
