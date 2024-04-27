@@ -166,11 +166,6 @@ def recommandGiftByUserInput(req):
     # 构建聚合查询
     query = [
         {
-            "$match": {
-                "status": "ACTIVE"    # 先筛选状态为ACTIVE的文档
-            }
-        },
-        {
             "$vectorSearch": {
                 "index": "vector_index",
                 "path": "descriptionVector",
@@ -178,6 +173,11 @@ def recommandGiftByUserInput(req):
     # "cosine": True,
                 "numCandidates": 50,
                 "limit": 10
+            }
+        },
+        {
+            "$match": {
+                "status": "ACTIVE"    # 先筛选状态为ACTIVE的文档
             }
         },
         {
