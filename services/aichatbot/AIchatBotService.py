@@ -210,8 +210,7 @@ def recommandGiftByUserInput(req):
     current_app.logger.info(
         f"Time taken to query Milvus: {end_time - start_time} seconds")
 
-    results_list = json.loads(results_list)
-
+    current_app.logger.info(f"Results: {results_list}")
     # 提取前三个结果的id，top_three_ids用来记录出现过的商品，不重复推荐
     # top_three_ids = [result['id'] for result in results_list[:3]]
     # print(top_three_ids)
