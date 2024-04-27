@@ -189,7 +189,6 @@ def recommandGiftByUserInput(req):
         },
         {
             "$project": {
-                "descriptionVector": 0,
                 "description": 1,
                 "featureImage": 1,
                 "shopify_id": 1,
@@ -198,7 +197,6 @@ def recommandGiftByUserInput(req):
                 "tags": 1,
                 "title": 1,
                 "productType": 1,
-                "_id": 0
             }
         }
     ]
