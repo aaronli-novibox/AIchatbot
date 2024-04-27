@@ -175,7 +175,7 @@ def recommandGiftByUserInput(req):
                 "index": "vector_index",
                 "path": "descriptionVector",
                 "queryVector": query_vector,
-                "cosine": True,
+    # "cosine": True,
                 "numCandidates": 50,
                 "limit": 10
             }
