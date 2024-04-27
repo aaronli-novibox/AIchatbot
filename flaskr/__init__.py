@@ -34,7 +34,6 @@ def config(app):
     app.config["SHOPIFY_SHOP_NAME"] = os.getenv("SHOPIFY_SHOP_NAME")
     app.config["MONGO_URI"] = os.getenv("MONGO_URI")
     app.config["OPENAI_KEY"] = os.getenv("OPENAI_KEY")
-    app.config["BASEURL"] = os.getenv("BASEURL")
 
 
 def create_app(test_config=None):
@@ -63,6 +62,8 @@ def create_app(test_config=None):
     app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')  # Set in your environment variables
     app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')  # Set in your environment variables
     app.config['TESTING'] = False
+    app.config['BASEURL'] = os.getenv('BASEURL')
+    app.config['BDEMAIL'] = os.getenv('BDEMAIL')
     mail = Mail(app)
 
     # Serializer for creating the token
@@ -90,6 +91,8 @@ def create_app(test_config=None):
     def register():
         data = request.form
         file = request.files.get('avatar')
+        confirm = False
+        email = data['email']
 
         if file:
             # Convert file to binary
@@ -101,8 +104,21 @@ def create_app(test_config=None):
             binary_data = None
         influencers_collection = getNewInfluencerListFromMongoDB();
         # Check if user already exists
-        if influencers_collection.find_one({'email': data['email']}):
-            return jsonify({'error': 'Email already in use'}), 409
+        if email != app.config['BDEMAIL']:
+            if influencers_collection.find_one({'email': email}):
+                return jsonify({'error': 'Email already in use'}), 409
+            
+            # send authentication email
+            token = s.dumps(email, salt='email-confirm')
+            confirm_url = f'{app.config['BASEURL']}/confirm/{token}'
+            msg = Message("Please Confirm Your Email", recipients=[email])
+            msg.body = f'Please confirm your email by clicking on the following link: {confirm_url}'
+            mail.send(msg)
+        else:
+            confirm = True
+            msg = Message("New Inflencer Added", recipients=[email])
+            msg.body = f'New influencer {data['firstName']} has registered with this email'
+            mail.send(msg)
 
         hashed_password = generate_password_hash(data['password'], method='pbkdf2:sha256')
 
@@ -122,12 +138,26 @@ def create_app(test_config=None):
             'audience': data.get('audience'),
             'niches': data.get('niches'),
             'shippingAddress': data.get('shippingAddress'),
-            'role': 'influencer'
+            'role': 'influencer',
+            'is_email_confirmed' : confirm
         }
 
         # Insert into MongoDB
         influencers_collection.insert_one(user_data)
         return jsonify({'message': 'Registration successful'}), 201
+    
+    @app.route('/confirm/<token>', methods=['GET'])
+    def confirm_email(token):
+        try:
+            email = s.loads(token, salt='email-confirm', max_age=3600)  # Token expires after 1 hour
+            influencers_collection = getNewInfluencerListFromMongoDB();
+            user = influencers_collection.find_one({'email': email})
+            if user and not user['confirmed']:
+                influencers_collection.update_one({'email': email}, {'$set': {'is_email_confirmed': True}})
+                return jsonify(message="Email confirmed successfully"), 200
+            return jsonify(message="Email already confirmed or token expired"), 400
+        except SignatureExpired:
+            return jsonify(message="The confirmation link has expired."), 400
 
     def role_required(*roles):
         def wrapper(fn):
@@ -176,6 +206,10 @@ def create_app(test_config=None):
             {'$or': [{'promo_code': influencer_identifier}, {'influencer_email': influencer_identifier}]})
         if not user:
             return jsonify({'error': 'User not found'}), 404
+        
+        # Check if the email is confirmed
+        if user['is_email_confirmed']== False:
+            return jsonify({'error': 'Email not confirmed'}), 401
 
         # Check password
         if not check_password_hash(user['password'], password):
