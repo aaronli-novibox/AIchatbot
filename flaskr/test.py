@@ -25,6 +25,7 @@ if __name__ == '__main__':
                 "shipping_address": "",  # Placeholder for shipping address
                 "collaboration": [],  # Placeholder for collaboration, expecting an array
                 "niche": [],
+                "interest": [],
                 "password": hashed_password,
                 "type":"",
                 "bio": "",
@@ -53,12 +54,14 @@ if __name__ == '__main__':
             "last_name": "",  # Placeholder for last name
             "country": "US",  # Placeholder for country
             "city_state": "",  # Placeholder for city and state
+            "type": "",
             "age": "",  # Placeholder for age
             "audience": [],
             "phone": "",  # Placeholder for phone number
             "shipping_address": "",  # Placeholder for shipping address
             "collaboration": [],  # Placeholder for collaboration, expecting an array
             "niche": [],
+            "interest": [],
             "avatar": None,
             "bio": "",
         })
@@ -80,11 +83,13 @@ if __name__ == '__main__':
             "country": "US",  # Placeholder for country
             "city_state": "",  # Placeholder for city and state
             "age": "",  # Placeholder for age
+            "type": "",
             "audience": [],
             "phone": "",  # Placeholder for phone number
             "shipping_address": "",  # Placeholder for shipping address
             "collaboration": [],  # Placeholder for collaboration, expecting an array
             "niche": [],
+            "interest": [],
             "avatar": None,
             "bio": "",
         })

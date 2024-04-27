@@ -105,47 +105,53 @@ def create_app(test_config=None):
         influencers_collection = getNewInfluencerListFromMongoDB();
         # Check if user already exists
         if email != app.config['BDEMAIL']:
-            if influencers_collection.find_one({'email': email}):
+            if influencers_collection.find_one({'influencer_email': email}):
                 return jsonify({'error': 'Email already in use'}), 409
-            
+
             # send authentication email
             token = s.dumps(email, salt='email-confirm')
-            confirm_url = f'{app.config['BASEURL']}/confirm/{token}'
+            confirm_url = f"{app.config['BASEURL']}/confirm/{token}"
             msg = Message("Please Confirm Your Email", recipients=[email])
-            msg.body = f'Please confirm your email by clicking on the following link: {confirm_url}'
+            msg.body = f"Please confirm your email by clicking on the following link: {confirm_url}"
             mail.send(msg)
         else:
             confirm = True
             msg = Message("New Inflencer Added", recipients=[email])
-            msg.body = f'New influencer {data['firstName']} has registered with this email'
+            msg.body = f"New influencer {data['firstName']} has registered with this email"
             mail.send(msg)
 
         hashed_password = generate_password_hash(data['password'], method='pbkdf2:sha256')
 
         # Prepare user data
         user_data = {
-            'firstName': data.get('firstName'),
-            'lastName': data.get('lastName'),
-            'email': data.get('email'),
-            'password': hashed_password,
-            'avatar': binary_data,
-            'country': data.get('country'),
-            'cityState': data.get('cityState'),
-            'phone': data.get('phone'),
-            'bio': data.get('bio'),
-            'promoCode': data.get('promoCode'),
-            'collaborations': data.get('collaborations'),
-            'audience': data.get('audience'),
-            'niches': data.get('niches'),
-            'shippingAddress': data.get('shippingAddress'),
-            'role': 'influencer',
-            'is_email_confirmed' : confirm
+                "influencer_name": data.get('username'),
+                "influencer_email": data.get('email'),
+                "promo_code": data.get('promoCode'),
+                "avatar": binary_data,
+                "contract_start": None,
+                "contract_end": None,
+                "product": [],
+                "first_name": data.get('firstName'),
+                "last_name": data.get('lastName'),
+                "middle_name": data.get('middleName'),
+                "password": hashed_password,
+                "role": 'influencer',
+                "age": data.get('age'),
+                "country": data.get('country'),
+                "city_state": data.get('cityState'),
+                "phone": data.get('phone'),
+                "bio": data.get('bio'),
+                "collaboration": data.get('collaborations'),
+                "audience": data.get('audience'),
+                "niche": data.get('niches'),
+                "interest": data.get('interests'),
+                "is_email_confirmed": confirm
         }
 
         # Insert into MongoDB
         influencers_collection.insert_one(user_data)
         return jsonify({'message': 'Registration successful'}), 201
-    
+
     @app.route('/confirm/<token>', methods=['GET'])
     def confirm_email(token):
         try:
@@ -206,7 +212,7 @@ def create_app(test_config=None):
             {'$or': [{'promo_code': influencer_identifier}, {'influencer_email': influencer_identifier}]})
         if not user:
             return jsonify({'error': 'User not found'}), 404
-        
+
         # Check if the email is confirmed
         if user['is_email_confirmed']== False:
             return jsonify({'error': 'Email not confirmed'}), 401
@@ -421,7 +427,7 @@ def create_app(test_config=None):
 
     @app.route('/productlist', methods=['POST'])
     @validate_json('influencer_name', 'role')
-    def get_user_products():
+    def get_all_products():
         data = request.get_json()
         influencer_name = data.get('influencer_name')
         search_term = data.get('search', '')
@@ -435,16 +441,6 @@ def create_app(test_config=None):
         print("product success")
 
         return jsonify({'products': products_list}), 200
-        
-        print("product success")
-
-        return jsonify({
-            'code': '0000',
-            'data': {
-                'products': products_list
-            },
-            'msg': 'success'
-        })
 
     @app.route('/products')
     def getProductsInfoFromMongoDB():
@@ -457,7 +453,7 @@ def create_app(test_config=None):
                 'products': products_list
             },
             'msg': 'success'
-        })
+        }), 200
 
     @app.route('/orderlist')
     def get_orderlist():
@@ -495,7 +491,7 @@ def create_app(test_config=None):
                 'orders': orders_list
             },
             'msg': 'success'
-        })
+        }), 200
 
     @app.route('/customers')
     def getCustomersInfoFromMongoDB():
