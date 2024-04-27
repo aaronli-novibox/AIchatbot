@@ -189,6 +189,7 @@ def recommandGiftByUserInput(req):
         },
         {
             "$project": {
+                "_id": 0,
                 "description": 1,
                 "featureImage": 1,
                 "shopify_id": 1,
