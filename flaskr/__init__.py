@@ -350,7 +350,7 @@ def create_app(test_config=None):
         Total_Commissions = 0
         last_month_orders = 0
 
-        order_list = getOrdersFromMongoDB(promocode=promocode)
+        order_list = getOrderCollection().find({'promo_code': promocode}, {'_id': 0})
         # 遍历所有相关订单
         for doc in order_list:
             if doc['financial_status'] == "refunded":
@@ -466,14 +466,14 @@ def create_app(test_config=None):
         data = request.get_json()
         search_term = data.get('search', '')
         role = data.get('role')
-        promocode = ''
+        influencer_name = data.get('influencer_name')
+        promocode = None
         if role != ['ADMIN']:
-            influencer_name = data.get('influencer_name')
             promocode = get_promocode(influencer_name=influencer_name)
 
         orderslist = getOrdersFromMongoDB(promocode=promocode)
-
-        return jsonify({'orders': orderslist}), 200
+        orders_dict = orderslist.to_dict(orient='records')
+        return jsonify({'orders': orders_dict}), 200
 
     @app.route('/orders')
     def getOrdersInfoFromMongoDB():

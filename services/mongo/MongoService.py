@@ -41,33 +41,54 @@ def getNewInfluencerListFromMongoDB():
     influencer_collection = g.db['test2']["new_influencers"]
     return influencer_collection
 
+def getOrderCollection():
+    order_collection = g.db['test2']["new_filled_orders"]
+    return order_collection
 
-def getOrdersFromMongoDB(promocode='', search_term='', start_time='', end_time=''):
+def get_all_order():
+    """
+    接受包含订单数据的DataFrame，前后填充空的promo_code，转换并提取fulfilled_at列的年和月，
+    然后按promo_code、年和月分组，计算每个组的订单总金额。
+
+    """
     order_collection = g.db['test2']["new_filled_orders"]
 
-    query = {}
-    if promocode:
-        query['promo_code'] = promocode
-
-    orderslist = list(order_collection.find(query, {'_id': 0}))
-
-    if orderslist:
-        data = pd.DataFrame(orderslist)
+    data = list(order_collection.find({}, {'_id': 0}))
+    if data:
+        data = pd.DataFrame(data)
 
         # 修正和转换fulfilled_at列，提取年和月
         data['fulfilled_at'] = data['fulfilled_at'].str[:-6]
         data['fulfilled_at'] = pd.to_datetime(data['fulfilled_at'], errors='coerce')
+        data['fulfilled_at'].fillna(method='bfill', inplace=True)
+        # data['fulfilled_at'].fillna(method='ffill', inplace=True)
         data['year'] = data['fulfilled_at'].dt.year
         data['month'] = data['fulfilled_at'].dt.month
-
-        # print(data[['name','promo_code']].head(30))
 
         # promo_code填充
         data['promo_code'].fillna(method='bfill', inplace=True)
         data['promo_code'].fillna(method='ffill', inplace=True)
 
-    return orderslist if orderslist else []
+    return data
 
+def filter_orders_by_code(df, promo_code):
+    if promo_code in df['promo_code'].values:
+        filtered_df = df[df['promo_code'] == promo_code]
+        return filtered_df
+    else:
+        raise ValueError("没有使用该promo_code的订单")
+
+def get_order_total(data):
+    # 分组并计算每个组的订单总金额
+    grouped_total = data.groupby(['promo_code', 'year','month']).agg({'subtotal': 'sum'}).reset_index()
+    return grouped_total
+
+def getOrdersFromMongoDB(promocode='', search_term='', start_time='', end_time=''):
+    df = get_all_order()
+    orders = []
+    if promocode:
+        orders = filter_orders_by_code(df, promocode)
+    return orders
 
 def countInfluencers():
     influencer_collection = getNewInfluencerListFromMongoDB()
