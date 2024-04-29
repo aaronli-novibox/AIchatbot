@@ -8,18 +8,20 @@ import requests
 from werkzeug.security import generate_password_hash, check_password_hash
 import secrets
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from bson import binary
 from io import BytesIO
+import jwt
 
 from dotenv import load_dotenv
 from flask import g, request, redirect, url_for, jsonify, render_template
 from flaskr.shp import *
 from flaskr.oai import *
-from flaskr.db import get_mongo_db,close_db
+from flaskr.db import get_mongo_db, close_db
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
+
 
 # from config import config
 
@@ -27,7 +29,6 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 
 
 def config(app):
-
     load_dotenv()
     app.config["SHOPIFY_API_KEY"] = os.getenv("SHOPIFY_API_KEY")
     app.config["SHOPIFY_API_PASSWORD"] = os.getenv("SHOPIFY_API_PASSWORD")
@@ -48,13 +49,13 @@ def create_app(test_config=None):
                          'config/config.py'))
         app.config.from_pyfile(os.path.join(
             os.path.dirname(os.path.dirname(__file__)), 'config/config.py'),
-                               silent=True)
+            silent=True)
     else:
         # load the test config if passed in
         app.config.from_mapping(test_config)
 
-    #config(app)
-    #configure for email send
+    # config(app)
+    # configure for email send
     app.config['SECRET_KEY'] = 'SECRETKEY'
     app.config['MAIL_SERVER'] = 'smtp.googlemail.com'
     app.config['MAIL_PORT'] = 587
@@ -82,8 +83,8 @@ def create_app(test_config=None):
         close_db()
         close_openai_service()
         import gc
-        gc.collect()    # 强制执行垃圾收集
-        print("garbage", gc.garbage)    # 打印无法回收的对象列表
+        gc.collect()  # 强制执行垃圾收集
+        print("garbage", gc.garbage)  # 打印无法回收的对象列表
 
         return response
 
@@ -124,28 +125,28 @@ def create_app(test_config=None):
 
         # Prepare user data
         user_data = {
-                "influencer_name": data.get('username'),
-                "influencer_email": data.get('email'),
-                "promo_code": data.get('promoCode'),
-                "avatar": binary_data,
-                "contract_start": None,
-                "contract_end": None,
-                "product": [],
-                "first_name": data.get('firstName'),
-                "last_name": data.get('lastName'),
-                "middle_name": data.get('middleName'),
-                "password": hashed_password,
-                "role": 'influencer',
-                "age": data.get('age'),
-                "country": data.get('country'),
-                "city_state": data.get('cityState'),
-                "phone": data.get('phone'),
-                "bio": data.get('bio'),
-                "collaboration": data.get('collaborations'),
-                "audience": data.get('audience'),
-                "niche": data.get('niches'),
-                "interest": data.get('interests'),
-                "is_email_confirmed": confirm
+            "influencer_name": data.get('username'),
+            "influencer_email": data.get('email'),
+            "promo_code": data.get('promoCode'),
+            "avatar": binary_data,
+            "contract_start": None,
+            "contract_end": None,
+            "product": [],
+            "first_name": data.get('firstName'),
+            "last_name": data.get('lastName'),
+            "middle_name": data.get('middleName'),
+            "password": hashed_password,
+            "role": 'influencer',
+            "age": data.get('age'),
+            "country": data.get('country'),
+            "city_state": data.get('cityState'),
+            "phone": data.get('phone'),
+            "bio": data.get('bio'),
+            "collaboration": data.get('collaborations'),
+            "audience": data.get('audience'),
+            "niche": data.get('niches'),
+            "interest": data.get('interests'),
+            "is_email_confirmed": confirm
         }
 
         # Insert into MongoDB
@@ -213,18 +214,24 @@ def create_app(test_config=None):
         if not user:
             return jsonify({'error': 'User not found'}), 404
 
-        # Check if the email is confirmed
-        if user['is_email_confirmed']== False:
-            return jsonify({'error': 'Email not confirmed'}), 401
+        # # Check if the email is confirmed
+        # if user['is_email_confirmed']== False:
+        #     return jsonify({'error': 'Email not confirmed'}), 401
 
         # Check password
         if not check_password_hash(user['password'], password):
             return jsonify({'error': 'Invalid password'}), 401
 
+        # JWT creation with expiration time
+        token = jwt.encode({
+            'user_id': str(user['_id']),
+            'exp': datetime.utcnow() + timedelta(hours=24)
+        }, app.config['SECRET_KEY'], algorithm='HS256')
+
         # Convert MongoDB documents to a JSON serializable format
         user_data = {k: str(v) if isinstance(v, ObjectId) else v for k, v in user.items()}
 
-        return jsonify({'message': 'Login successful', 'user': user_data}), 200
+        return jsonify({'message': 'Login successful', 'user': user_data, 'token': token}), 200
 
     @app.route('/checkusername', methods=['POST'])
     @validate_json('username')
@@ -321,7 +328,6 @@ def create_app(test_config=None):
         }), 200
 
     @app.route('/userdash', methods=['POST'])
-    @validate_json('influencer_name', 'role')
     def get_userbroad():
         data = request.get_json()
         influencer_name = data.get('influencer_name')
@@ -344,7 +350,7 @@ def create_app(test_config=None):
         Total_Commissions = 0
         last_month_orders = 0
 
-        order_list = getOrdersFromMongoDB().find({'promo_code': promocode}, {'_id': 0})
+        order_list = getOrdersFromMongoDB(promocode=promocode)
         # 遍历所有相关订单
         for doc in order_list:
             if doc['financial_status'] == "refunded":
@@ -399,7 +405,7 @@ def create_app(test_config=None):
         ## Change to real Domain
         domain = app.config["BASEURL"]
         link = f"{domain}{reset_path}"
-        #msg.body = f'Your link to reset your password is {link}'
+        # msg.body = f'Your link to reset your password is {link}'
         msg.html = render_template('email/email_template.html', link=link, username="Test")
         try:
             mail.send(msg)
@@ -455,34 +461,23 @@ def create_app(test_config=None):
             'msg': 'success'
         }), 200
 
-    @app.route('/orderlist')
+    @app.route('/orderlist', methods=['POST'])
     def get_orderlist():
         data = request.get_json()
         search_term = data.get('search', '')
-        orders_cursor = getOrderListFromMongoDB()
-        influencer_name = data.get('influencer_name')
-        influencers_collection = getNewInfluencerListFromMongoDB();
-        user = influencers_collection.find_one(
-            {'$or': [{'influencer_name': influencer_name}]})
-        promocode = user['promo_code']
         role = data.get('role')
-        orderslist = []
+        promocode = ''
+        if role != ['ADMIN']:
+            influencer_name = data.get('influencer_name')
+            promocode = get_promocode(influencer_name=influencer_name)
 
-        if influencer_name is None:
-            return jsonify({'message': 'Influencer name is required'}), 400
-        if role == ['ADMIN']:
-            orderslist = getOrderListFromMongoDB()
-        else:
-            orderslist = getOrdersFromMongoDB().find_one({'promo_code': promocode})
-        # Convert ObjectId to string if present
-        if orderslist and '_id' in orderslist:
-            orderslist['_id'] = str(orderslist['_id'])
+        orderslist = getOrdersFromMongoDB(promocode=promocode)
 
         return jsonify({'orders': orderslist}), 200
 
     @app.route('/orders')
     def getOrdersInfoFromMongoDB():
-        orders_cursor = getOrderListFromMongoDB()
+        orders_cursor = getOrderListFromMongoDB();
         orders_list = list(orders_cursor)
 
         return jsonify({

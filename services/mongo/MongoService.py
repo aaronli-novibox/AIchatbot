@@ -1,5 +1,5 @@
 from flask import g, current_app
-from datetime import datetime
+import pandas as pd
 
 
 # return cursor type, and filter '_id' field
@@ -30,17 +30,43 @@ def getInfluencerListFromMongoDB():
 
     return documents
 
+def get_promocode(influencer_name=''):
+    result = getNewInfluencerListFromMongoDB().find_one({'influencer_name': influencer_name},
+              {'promo_code': 1})
+    if result:
+        return result.get('promo_code')
+    return None
 
 def getNewInfluencerListFromMongoDB():
     influencer_collection = g.db['test2']["new_influencers"]
-
     return influencer_collection
 
 
-def getOrdersFromMongoDB():
+def getOrdersFromMongoDB(promocode='', search_term='', start_time='', end_time=''):
     order_collection = g.db['test2']["new_filled_orders"]
 
-    return order_collection
+    query = {}
+    if promocode:
+        query['promo_code'] = promocode
+
+    orderslist = list(order_collection.find(query, {'_id': 0}))
+
+    if orderslist:
+        data = pd.DataFrame(orderslist)
+
+        # 修正和转换fulfilled_at列，提取年和月
+        data['fulfilled_at'] = data['fulfilled_at'].str[:-6]
+        data['fulfilled_at'] = pd.to_datetime(data['fulfilled_at'], errors='coerce')
+        data['year'] = data['fulfilled_at'].dt.year
+        data['month'] = data['fulfilled_at'].dt.month
+
+        # print(data[['name','promo_code']].head(30))
+
+        # promo_code填充
+        data['promo_code'].fillna(method='bfill', inplace=True)
+        data['promo_code'].fillna(method='ffill', inplace=True)
+
+    return orderslist if orderslist else []
 
 
 def countInfluencers():
