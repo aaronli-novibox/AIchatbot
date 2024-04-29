@@ -394,10 +394,10 @@ def create_app(test_config=None):
         influencer_email = data.get('influencer_email')
 
         # Check if user exists
-        # influencers_collection = getNewInfluencerListFromMongoDB()
-        # user = influencers_collection.find_one({'influencer_email': influencer_email})
-        # if not user:
-        #     return jsonify({'error': 'User not found'}), 404
+        influencers_collection = getNewInfluencerListFromMongoDB()
+        user = influencers_collection.find_one({'influencer_email': influencer_email})
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
 
         token = s.dumps(influencer_email, salt='email-reset')
         msg = Message('Password Reset Request', sender=app.config['MAIL_USERNAME'], recipients=[influencer_email])
@@ -471,9 +471,12 @@ def create_app(test_config=None):
         if role != ['ADMIN']:
             promocode = get_promocode(influencer_name=influencer_name)
 
-        orderslist = getOrdersFromMongoDB(promocode=promocode)
-        orders_dict = orderslist.to_dict(orient='records')
-        return jsonify({'orders': orders_dict}), 200
+        try:
+            orderslist = getOrdersFromMongoDB(promocode=promocode)
+            datalist = orderslist.to_dict(orient='records')
+            return jsonify({'orders': datalist}), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
     @app.route('/orders')
     def getOrdersInfoFromMongoDB():
@@ -500,6 +503,20 @@ def create_app(test_config=None):
             },
             'msg': 'success'
         })
+
+    @app.route('/influencerlist', methods=['POST'])
+    def get_influencerlist():
+        data = request.get_json()
+        search_term = data.get('search', '')
+        role = data.get('role')
+
+        influencers = search_influencerList(search=search_term)
+        influencers_list = list(influencers)
+
+        if role == ['ADMIN']:
+            return jsonify({'influencers': influencers_list}), 200
+        else:
+            return jsonify({'msg': 'Not admin account'}), 200
 
     @app.route('/influencers')
     def getInfluencersInfoFromMongoDB():

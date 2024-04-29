@@ -1,6 +1,6 @@
 from flask import g, current_app
 import pandas as pd
-
+import numpy as np
 
 # return cursor type, and filter '_id' field
 def getProductListFromMongoDB():
@@ -23,6 +23,20 @@ def getCustomerListFromMongoDB():
 
     return documents
 
+def search_influencerList(search=''):
+    influencers_collection = g.db['test2']["new_influencers"]
+    if search:
+        regex_pattern = f".*{search}.*"  # Create a regex pattern for fuzzy search
+        influencers = influencers_collection.find(
+            {"$or": [
+                {"influencer_name": {"$regex": regex_pattern, "$options": "i"}},
+                {"promo_code": {"$regex": regex_pattern, "$options": "i"}}
+            ]},
+            {'_id': 0, 'password': 0} # Exclude 'password' from the results
+        )
+    else:
+        influencers = influencers_collection.find({}, {'_id': 0, 'password': 0})
+    return influencers
 
 def getInfluencerListFromMongoDB():
     customer_collection = g.db['test2']["influencers"]
@@ -45,6 +59,31 @@ def getOrderCollection():
     order_collection = g.db['test2']["new_filled_orders"]
     return order_collection
 
+def replace_nan_with_none(data):
+    """ Recursively replace NaN or None with None in any data structure. """
+    if isinstance(data, list):
+        return [replace_nan_with_none(item) for item in data]
+    elif isinstance(data, dict):
+        return {key: replace_nan_with_none(value) for key, value in data.items()}
+    elif isinstance(data, float) and pd.isna(data):  # Check for NaN of double type
+        return None
+    elif str(data) == "nan" or pd.isna(data):  # Check for string "NaN" and NaN
+        return None
+        return data.apply(replace_nan_with_none)
+    elif isinstance(data, pd.Timestamp):  # Check if data is a Timestamp object
+        return str(data)
+    else:
+        return data
+
+def process_data(data):
+    """ Process data which might be nested lists, dicts, or DataFrame directly. """
+    if isinstance(data, pd.DataFrame):
+        return data.applymap(replace_nan_with_none)
+    elif isinstance(data, (dict, list)):
+        return replace_nan_with_none(data)
+    else:
+        return replace_nan_with_none(data)
+
 def get_all_order():
     """
     接受包含订单数据的DataFrame，前后填充空的promo_code，转换并提取fulfilled_at列的年和月，
@@ -55,21 +94,32 @@ def get_all_order():
 
     data = list(order_collection.find({}, {'_id': 0}))
     if data:
-        data = pd.DataFrame(data)
+        df = pd.DataFrame(data)
 
         # 修正和转换fulfilled_at列，提取年和月
-        data['fulfilled_at'] = data['fulfilled_at'].str[:-6]
-        data['fulfilled_at'] = pd.to_datetime(data['fulfilled_at'], errors='coerce')
-        data['fulfilled_at'].fillna(method='bfill', inplace=True)
+        df['fulfilled_at'] = df['fulfilled_at'].str[:-6]  # Assuming '-06' needs to be removed
+        df['fulfilled_at'] = pd.to_datetime(df['fulfilled_at'], errors='coerce')
+        df['fulfilled_at'].fillna(method='bfill', inplace=True)
+
         # data['fulfilled_at'].fillna(method='ffill', inplace=True)
-        data['year'] = data['fulfilled_at'].dt.year
-        data['month'] = data['fulfilled_at'].dt.month
+        df['year'] = df['fulfilled_at'].dt.year
+        df['month'] = df['fulfilled_at'].dt.month
 
         # promo_code填充
-        data['promo_code'].fillna(method='bfill', inplace=True)
-        data['promo_code'].fillna(method='ffill', inplace=True)
+        df['promo_code'].fillna(method='bfill', inplace=True)
+        df['promo_code'].fillna(method='ffill', inplace=True)
 
-    return data
+        df['device_id'].fillna(value=0, inplace=True)
+        df['phone'].fillna(value=0, inplace=True)
+
+        # Replace all remaining NaN values with None in Nested Structures
+        try:
+            processed_df = process_data(df)
+            return processed_df
+        except Exception as e:
+            print(e)
+    else:
+        return []
 
 def filter_orders_by_code(df, promo_code):
     if promo_code in df['promo_code'].values:
@@ -85,21 +135,63 @@ def get_order_total(data):
 
 def getOrdersFromMongoDB(promocode='', search_term='', start_time='', end_time=''):
     df = get_all_order()
-    orders = []
-    if promocode:
-        orders = filter_orders_by_code(df, promocode)
-    return orders
+    order_list = []
+    # if promocode:
+    #     order_list = filter_orders_by_code(df, promocode).copy()
+    # else:
+    order_list = df.copy()
+
+    influencer_collection = g.db['test2']["new_influencers"]
+    influencer_list = list(influencer_collection.find({}, {'_id': 0}))
+    influencer_data = pd.json_normalize(influencer_list, 'product', meta=['influencer_name', 'promo_code'],
+                                        record_prefix='product_')
+
+    # 展开嵌入式文件并转化为DataFrame
+    datalist = order_list.to_dict(orient='records')
+    order_data = pd.json_normalize(datalist, 'lineitem', meta=['name', 'promo_code', 'fulfilled_at', 'subtotal'], record_prefix='lineitem_')
+
+    # order重命名
+    order_data = order_data.rename(columns={'lineitem_lineitem_sku': 'lineitem_sku'})
+
+    # 填充promo_code，修正和转换fulfilled_at列，提取年和月
+    order_data['fulfilled_at'] = order_data['fulfilled_at'].str[:-6]
+    order_data['fulfilled_at'] = pd.to_datetime(order_data['fulfilled_at'], errors='coerce')
+    order_data['year'] = order_data['fulfilled_at'].dt.year
+    order_data['month'] = order_data['fulfilled_at'].dt.month
+    order_data['promo_code'].fillna(method='bfill', inplace=True)
+    order_data['promo_code'].fillna(method='ffill', inplace=True)
+
+    # 分组并计算每个promo_code各产品的订单总金额
+    grouped_product_subtotal = order_data.groupby(['promo_code', 'year', 'month', 'lineitem_sku']).agg(
+        {'subtotal': 'sum'}).reset_index()
+
+    # 提取influencer分红信息
+    influencer_commission_rate = influencer_data[
+        ['promo_code', 'product_product_sku', 'product_commission']].rename(
+        columns={'product_product_sku': 'lineitem_sku'})
+
+    # 转换commission数据类型
+    influencer_commission_rate['product_commission'] = influencer_commission_rate['product_commission'].str[:-1]
+    influencer_commission_rate['product_commission'] = influencer_commission_rate['product_commission'].astype(int)
+
+    # 拼接influencer分红信息和订单信息
+    influencer_order_commission = pd.merge(grouped_product_subtotal, influencer_commission_rate,
+                                            on=['promo_code', 'lineitem_sku'])
+
+    # 计算分红
+    influencer_order_commission['Total_commission'] = influencer_order_commission['product_commission'] * influencer_order_commission['subtotal']
+
+    return influencer_order_commission
 
 def countInfluencers():
     influencer_collection = getNewInfluencerListFromMongoDB()
     count = influencer_collection.count_documents({})
     return count
 
-
 def insertInfluencerData(influencer_data):
     promo_codes = [data['promo_code'] for data in influencer_data]
 
-    influencer_collection = g.db['test2']["influencers"]
+    influencer_collection = g.db['test2']["new_influencers"]
     influencer_collection.insert_many(influencer_data)
 
     for code in promo_codes:
@@ -111,7 +203,6 @@ def insertInfluencerData(influencer_data):
         influencer_collection.insert_many(influencer_data)
         print("Data inserted successfully.")
         return 1
-
 
 def getInflencerProductList(influencer_name, search_term=''):
     # Get Influencers Infor and products
