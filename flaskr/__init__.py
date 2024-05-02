@@ -212,7 +212,7 @@ def create_app(test_config=None):
         user = influencers_collection.find_one(
             {'$or': [{'promo_code': influencer_identifier}, {'influencer_email': influencer_identifier}]})
         if not user:
-            return jsonify({'error': 'User not found'}), 404
+            return jsonify({'error': 'Email or promocode not found'}), 404
 
         # # Check if the email is confirmed
         # if user['is_email_confirmed']== False:
@@ -439,12 +439,26 @@ def create_app(test_config=None):
         search_term = data.get('search', '')
         if not influencer_name:
             return jsonify({'message': 'Influencer name is required'}), 400
-        products_list = getInflencerProductList(influencer_name, search_term)
+        products_list = get_all_products_mongodb(influencer_name, search_term)
 
         if not products_list:
             return jsonify({'message': 'Influencer not has products'}), 400
 
         print("product success")
+
+        return jsonify({'products': products_list}), 200
+
+    @app.route('/yourproducts', methods=['POST'])
+    @validate_json('influencer_name', 'role')
+    def get_influencer_products():
+        data = request.get_json()
+        influencer_name = data.get('influencer_name')
+        search_term = data.get('search', '')
+
+        if not influencer_name:
+            return jsonify({'message': 'Influencer name is required'}), 400
+
+        products_list = getInflencerProducts(influencer_name, search_term)
 
         return jsonify({'products': products_list}), 200
 

@@ -204,45 +204,60 @@ def insertInfluencerData(influencer_data):
         print("Data inserted successfully.")
         return 1
 
-def getInflencerProductList(influencer_name, search_term=''):
+def getInflencerProducts(influencer_name, search_term=''):
     # Get Influencers Infor and products
     influencers_collection = g.db['test2']["new_influencers"]
     influencer_info = influencers_collection.find_one({'influencer_name': influencer_name},
-                                                      {'product': 1, 'promo_code': 1})
+                                                      {'id': 0})
     if influencer_info is None:
         print(f"No influncer found with name {influencer_name}")
         return
     signed_products = influencer_info['product']
-    # promo_code = influencer_info['promo_code']
 
-    # Get all products
-    products_collection = g.db['test2']["products"]
-    if search_term:
-        regex_pattern = f".*{search_term}.*"  # Create a regex pattern for fuzzy search
-        products = products_collection.find({"title": {"$regex": regex_pattern, "$options": "i"}},
-                                            {'title': 1, '_id': 0})
-    else:
-        products = products_collection.find({}, {'title': 1, '_id': 0})
-    products = list(products)
-    for product in products:
-        # Initiate atrributes
-        product['commission_rate'] = '8%'
-        product['status'] = False
-        product['product_sku'] = None
-        product['start_time'] = None
-        product['end_time'] = None
-        # product['total_products_purchased'] = 0
-        # product['earnings_per_product'] = 0
-        # product['total_commission'] = 0
+    in_signed_products = []
 
-        # check if the product is signed with a commission rate
-        is_signed = next((item for item in signed_products if item['product_name'] == product['title']), None)
-        if is_signed is not None:
-            product['status'] = True
-            product['product_sku'] = is_signed['product_sku']
-            product['commission_rate'] = is_signed['commission']
-            product['start_time'] = is_signed['product_contract_start']
-            product['end_time'] = is_signed['product_contract_end']
+    for product in signed_products:
+        # Prepare the product dictionary
+        product_info = {
+            'title': product.get('product_name'),
+            'commission_rate': product.get('commission', '8%'),  # Default to '8%' if not specified
+            'status': True,
+            'product_sku': product.get('product_sku'),
+            'start_time': product.get('product_contract_start'),
+            'end_time': product.get('product_contract_end')
+        }
+
+        normalized_search_term = search_term.strip().lower()
+        if not normalized_search_term or normalized_search_term in product_info['title'].lower():
+            in_signed_products.append(product_info)
+
+    return in_signed_products
+
+# 获取所有签约的products 给管理员
+def get_signed_Products(search_term=''):
+    # Get Influencers Infor and products
+    influencers_collection = g.db['test2']["new_influencers"]
+    # Prepare a list to hold all unique signed products from all influencers
+    all_signed_products = []
+
+    for influencer_info in influencers_collection.find({}):
+
+        signed_products = influencer_info['product']
+
+        for product in signed_products:
+            # Prepare the product dictionary
+            product_info = {
+                'title': product.get('product_name'),
+                'commission_rate': product.get('commission', '8%'),  # Default to '8%' if not specified
+                'status': True,
+                'product_sku': product.get('product_sku'),
+                'start_time': product.get('product_contract_start'),
+                'end_time': product.get('product_contract_end')
+            }
+
+            normalized_search_term = search_term.strip().lower()
+            if not normalized_search_term or normalized_search_term in product_info['title'].lower():
+                all_signed_products.append(product_info)
 
     # # Get orders with promo code
     # orders = g.db['test2']['new_filled_orders']
@@ -265,8 +280,24 @@ def getInflencerProductList(influencer_name, search_term=''):
     #     if result['status'] and create_time > datetime.strptime(result['start_time'], '%m-%d-%Y') and create_time < datetime.strptime(result['end_time'], '%m-%d-%Y'):
     #         #很奇怪，price是从order里获取的。如果同一个商品的不同order的不同price那怎么办
     #         result['earnings_per_product'] = float(result['commission_rate'].replace('%', ''))/100 * price
-    #     else: 
+    #     else:
     #         result['earnings_per_product'] =  price * 0.08
     #     result['total_commission'] += result['earnings_per_product'] * quantity
+
+    return all_signed_products
+
+# 获取所有products（这个列表）给管理员
+def get_all_products_mongodb(search_term=''):
+    # Get all products
+    products_collection = g.db['test2']["products"]
+    if search_term:
+        regex_pattern = f".*{search_term}.*"  # Create a regex pattern for fuzzy search
+        products = products_collection.find({"title": {"$regex": regex_pattern, "$options": "i"}},
+                                            {'title': 1, '_id': 0})
+    else:
+        products = products_collection.find({}, {'title': 1, '_id': 0})
+    products = list(products)
+    for product in products:
+        product['commission_rate'] = "8%"
 
     return products
