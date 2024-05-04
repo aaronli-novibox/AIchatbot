@@ -286,16 +286,16 @@ def get_signed_Products(search_term=''):
 
     return all_signed_products
 
-# 获取所有products（这个列表）给管理员
+# 获取所有products（products 这个列表）
 def get_all_products_mongodb(search_term=''):
     # Get all products
     products_collection = g.db['test2']["products"]
     if search_term:
         regex_pattern = f".*{search_term}.*"  # Create a regex pattern for fuzzy search
         products = products_collection.find({"title": {"$regex": regex_pattern, "$options": "i"}},
-                                            {'title': 1, '_id': 0})
+                                            {'_id': 0})
     else:
-        products = products_collection.find({}, {'title': 1, '_id': 0})
+        products = products_collection.find({}, {'_id': 0})
     products = list(products)
     for product in products:
         product['commission_rate'] = "8%"

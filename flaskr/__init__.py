@@ -13,6 +13,7 @@ from functools import wraps
 from bson import binary
 from io import BytesIO
 import jwt
+import base64
 
 from dotenv import load_dotenv
 from flask import g, request, redirect, url_for, jsonify, render_template
@@ -110,11 +111,11 @@ def create_app(test_config=None):
                 return jsonify({'error': 'Email already in use'}), 409
 
             # send authentication email
-            token = s.dumps(email, salt='email-confirm')
-            confirm_url = f"{app.config['BASEURL']}/confirm/{token}"
-            msg = Message("Please Confirm Your Email", recipients=[email])
-            msg.body = f"Please confirm your email by clicking on the following link: {confirm_url}"
-            mail.send(msg)
+            # token = s.dumps(email, salt='email-confirm')
+            # confirm_url = f"{app.config['BASEURL']}/confirm/{token}"
+            # msg = Message("Please Confirm Your Email", recipients=[email])
+            # msg.body = f"Please confirm your email by clicking on the following link: {confirm_url}"
+            # mail.send(msg)
         else:
             confirm = True
             msg = Message("New Inflencer Added", recipients=[email])
@@ -229,8 +230,16 @@ def create_app(test_config=None):
         }, app.config['SECRET_KEY'], algorithm='HS256')
 
         # Convert MongoDB documents to a JSON serializable format
-        user_data = {k: str(v) if isinstance(v, ObjectId) else v for k, v in user.items()}
-
+        user_data = {}
+        for key, value in user.items():
+            if isinstance(value, ObjectId):
+                user_data[key] = str(value)
+            elif isinstance(value, bytes):
+                # Convert bytes to Base64 string if needed
+                user_data[key] = base64.b64encode(value).decode('utf-8')
+            else:
+                user_data[key] = value
+        print(user_data['avatar'])
         return jsonify({'message': 'Login successful', 'user': user_data, 'token': token}), 200
 
     @app.route('/checkusername', methods=['POST'])
@@ -439,12 +448,7 @@ def create_app(test_config=None):
         search_term = data.get('search', '')
         if not influencer_name:
             return jsonify({'message': 'Influencer name is required'}), 400
-        products_list = get_all_products_mongodb(influencer_name, search_term)
-
-        if not products_list:
-            return jsonify({'message': 'Influencer not has products'}), 400
-
-        print("product success")
+        products_list = get_all_products_mongodb(search_term)
 
         return jsonify({'products': products_list}), 200
 
