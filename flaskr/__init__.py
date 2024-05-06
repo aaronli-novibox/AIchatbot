@@ -209,9 +209,9 @@ def create_app(test_config=None):
 
     @app.route('/update_influencer', methods=['POST'])
     def update_userinfo():
-        data = request.form
+        data = request.json
         email = data.get('email')
-        file = request.files.get('avatar')
+        # file = request.files.get('avatar')
 
         if not email:
             return jsonify({'error': 'Missing email field'}), 400
@@ -223,16 +223,6 @@ def create_app(test_config=None):
         influencer = influencers_collection.find_one({'influencer_email': email})
         if not influencer:
             return jsonify({'error': 'Influencer not found'}), 404
-
-        # Handle file update
-        if file:
-            # Convert file to binary
-            file_stream = BytesIO()
-            file.save(file_stream)
-            file_stream.seek(0)
-            binary_data = binary.Binary(file_stream.read())
-        else:
-            binary_data = None
 
         # Prepare updated data, only for fields that are allowed to change
         updated_data = {
@@ -248,10 +238,6 @@ def create_app(test_config=None):
             "interest": data.get('interests', influencer.get('interest')),
             "is_email_confirmed": data.get('is_email_confirmed', influencer.get('is_email_confirmed')),
         }
-
-        # Update the avatar only if it's present
-        if binary_data is not None:
-            updated_data["avatar"] = binary_data
 
         # Perform the update using $set to only modify allowed fields
         update_result = influencers_collection.update_one(
