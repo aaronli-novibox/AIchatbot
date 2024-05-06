@@ -200,6 +200,69 @@ def create_app(test_config=None):
 
         return decorator
 
+    def safe_json_loads(data_str):
+        try:
+            return json.loads(data_str) if data_str and isinstance(data_str, str) else data_str
+        except json.JSONDecodeError:
+            return None
+
+    @app.route('/update_influencer', methods=['POST'])
+    def update_userinfo():
+        data = request.form
+        email = data.get('email')
+        file = request.files.get('avatar')
+
+        if not email:
+            return jsonify({'error': 'Missing email field'}), 400
+
+        # Get the MongoDB collection
+        influencers_collection = getNewInfluencerListFromMongoDB()
+
+        # Fetch the existing influencer information
+        influencer = influencers_collection.find_one({'influencer_email': email})
+        if not influencer:
+            return jsonify({'error': 'Influencer not found'}), 404
+
+        # Handle file update
+        if file:
+            # Convert file to binary
+            file_stream = BytesIO()
+            file.save(file_stream)
+            file_stream.seek(0)
+            binary_data = binary.Binary(file_stream.read())
+        else:
+            binary_data = None
+
+        # Prepare updated data, only for fields that are allowed to change
+        updated_data = {
+            "age": data.get('age', influencer.get('age')),
+            "country": data.get('country', influencer.get('country')),
+            "city_state": data.get('cityState', influencer.get('city_state')),
+            "phone": data.get('phone', influencer.get('phone')),
+            "bio": data.get('bio', influencer.get('bio')),
+            "collaboration": data.get('collaborations', influencer.get('collaboration')),
+            "audience": data.get('audience', influencer.get('audience')),
+            "niche": data.get('niches', influencer.get('niche')),
+            "interest": data.get('interests', influencer.get('interest')),
+            "is_email_confirmed": data.get('is_email_confirmed', influencer.get('is_email_confirmed')),
+        }
+
+        # Update the avatar only if it's present
+        if binary_data is not None:
+            updated_data["avatar"] = binary_data
+
+        # Perform the update using $set to only modify allowed fields
+        update_result = influencers_collection.update_one(
+            {'influencer_email': email},
+            {'$set': updated_data}
+        )
+
+        # Check if the update was successful
+        if update_result.matched_count == 0:
+            return jsonify({'error': 'Update failed'}), 500
+
+        return jsonify({'message': 'User information updated successfully'}), 200
+
     # Login
     @app.route('/login', methods=['POST'])
     @validate_json('password', one_of=['email', 'promocode'])
@@ -237,9 +300,12 @@ def create_app(test_config=None):
             elif isinstance(value, bytes):
                 # Convert bytes to Base64 string if needed
                 user_data[key] = base64.b64encode(value).decode('utf-8')
+            elif key in ['collaboration', 'audience', 'niche', 'interest']:
+                # Parse JSON strings into JSON objects
+                user_data[key] = safe_json_loads(value)
             else:
                 user_data[key] = value
-        print(user_data['avatar'])
+        # print(user_data)
         return jsonify({'message': 'Login successful', 'user': user_data, 'token': token}), 200
 
     @app.route('/checkusername', methods=['POST'])
