@@ -384,7 +384,7 @@ def create_app(test_config=None):
 
         if influencer_name is None:
             return jsonify({'message': 'Influencer name is required'}), 400
-        if role == ['ADMIN']:
+        if role == 'admin':
             products_list = getProductListFromMongoDB()
 
         influencers_collection = getNewInfluencerListFromMongoDB()
@@ -552,7 +552,7 @@ def create_app(test_config=None):
         role = data.get('role')
         influencer_name = data.get('influencer_name')
         promocode = None
-        if role != ['ADMIN']:
+        if role != 'admin':
             promocode = get_promocode(influencer_name=influencer_name)
 
         try:
@@ -592,12 +592,12 @@ def create_app(test_config=None):
     def get_influencerlist():
         data = request.get_json()
         search_term = data.get('search', '')
-        role = data.get('role')
+        role = data.get('role', '')
 
         influencers = search_influencerList(search=search_term)
         influencers_list = list(influencers)
 
-        if role == ['ADMIN']:
+        if role == 'admin':
             return jsonify({'influencers': influencers_list}), 200
         else:
             return jsonify({'msg': 'Not admin account'}), 200
