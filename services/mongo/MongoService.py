@@ -1,63 +1,72 @@
 from flask import g, current_app
 import pandas as pd
 import numpy as np
+from ...flaskr.product_mongo import *
+from mongoengine import Q
+
 
 # return cursor type, and filter '_id' field
 def getProductListFromMongoDB():
-    product_collection = g.db['test2']["products"]
-    documents = product_collection.find({}, {'_id': 0})
 
-    return documents
+    products = Product.objects.exclude('id')
+    return list(products)    # 返回产品列表
 
 
 def getOrderListFromMongoDB():
-    order_collection = g.db['test2']["orders"]
-    documents = order_collection.find({}, {'_id': 0})
 
-    return documents
+    orders = Order.objects.exclude('id')
+
+    return list(orders)    # 返回订单列表
 
 
 def getCustomerListFromMongoDB():
-    customer_collection = g.db['test2']["customers"]
-    documents = customer_collection.find({}, {'_id': 0})
 
-    return documents
+    customers = Customer.objects.exclude('id')
 
-def search_influencerList(search=''):
-    influencers_collection = g.db['test2']["new_influencers"]
-    if search:
-        regex_pattern = f".*{search}.*"  # Create a regex pattern for fuzzy search
-        influencers = influencers_collection.find(
-            {"$or": [
-                {"influencer_name": {"$regex": regex_pattern, "$options": "i"}},
-                {"promo_code": {"$regex": regex_pattern, "$options": "i"}}
-            ]},
-            {'_id': 0, 'password': 0} # Exclude 'password' from the results
-        )
-    else:
-        influencers = influencers_collection.find({}, {'_id': 0, 'password': 0})
-    return influencers
+    return list(customers)    # 返回客户列表
+
 
 def getInfluencerListFromMongoDB():
-    customer_collection = g.db['test2']["influencers"]
-    documents = customer_collection.find({}, {'_id': 0})
 
-    return documents
+    influencers = Influencer.orders.exxclude('id')
+
+    return list(influencers)    # 返回影响者列表
+
+
+def search_influencerList(search=''):
+
+    if search:
+        regex_pattern = f".*{search}.*"
+        # 使用 Q 对象来构建 OR 查询，并进行不区分大小写的模糊搜索
+        influencers = Influencer.objects(
+            Q(influencer_name__iregex=regex_pattern) |
+            Q(promo_code__iregex=regex_pattern)).exclude(
+                'id', 'password')    # 排除 '_id' 和 'password' 字段
+    else:
+        # 没有搜索词则返回所有影响者，并排除特定字段
+        influencers = Influencer.objects.exclude('id', 'password')
+
+    return influencers
+
 
 def get_promocode(influencer_name=''):
-    result = getNewInfluencerListFromMongoDB().find_one({'influencer_name': influencer_name},
-              {'promo_code': 1})
-    if result:
-        return result.get('promo_code')
+
+    influencer = Influencer.objects(
+        influencer_name=influencer_name).only('promo_code').first()
+    if influencer:
+        return influencer.promo_code
     return None
+
 
 def getNewInfluencerListFromMongoDB():
     influencer_collection = g.db['test2']["new_influencers"]
     return influencer_collection
 
+
 def getOrderCollection():
     order_collection = g.db['test2']["new_filled_orders"]
     return order_collection
+
 
 def replace_nan_with_none(data):
     """ Recursively replace NaN or None with None in any data structure. """
@@ -65,15 +74,19 @@ def replace_nan_with_none(data):
         return [replace_nan_with_none(item) for item in data]
     elif isinstance(data, dict):
         return {key: replace_nan_with_none(value) for key, value in data.items()}
-    elif isinstance(data, float) and pd.isna(data):  # Check for NaN of double type
+    elif isinstance(data,
+                    float) and pd.isna(data):    # Check for NaN of double type
         return None
-    elif str(data) == "nan" or pd.isna(data):  # Check for string "NaN" and NaN
+    elif str(data) == "nan" or pd.isna(
+            data):    # Check for string "NaN" and NaN
         return None
         return data.apply(replace_nan_with_none)
-    elif isinstance(data, pd.Timestamp):  # Check if data is a Timestamp object
+    elif isinstance(data,
+                    pd.Timestamp):    # Check if data is a Timestamp object
         return str(data)
     else:
         return data
+
 
 def process_data(data):
     """ Process data which might be nested lists, dicts, or DataFrame directly. """
@@ -83,6 +96,7 @@ def process_data(data):
         return replace_nan_with_none(data)
     else:
         return replace_nan_with_none(data)
+
 
 def get_all_order():
     """
@@ -97,7 +111,8 @@ def get_all_order():
         df = pd.DataFrame(data)
 
         # 修正和转换fulfilled_at列，提取年和月
-        df['fulfilled_at'] = df['fulfilled_at'].str[:-6]  # Assuming '-06' needs to be removed
+        df['fulfilled_at'] = df[
+            'fulfilled_at'].str[:-6]    # Assuming '-06' needs to be removed
         df['fulfilled_at'] = pd.to_datetime(df['fulfilled_at'], errors='coerce')
         df['fulfilled_at'].fillna(method='bfill', inplace=True)
 
@@ -121,6 +136,7 @@ def get_all_order():
     else:
         return []
 
+
 def filter_orders_by_code(df, promo_code):
     if promo_code in df['promo_code'].values:
         filtered_df = df[df['promo_code'] == promo_code]
@@ -128,12 +144,19 @@ def filter_orders_by_code(df, promo_code):
     else:
         raise ValueError("没有使用该promo_code的订单")
 
+
 def get_order_total(data):
     # 分组并计算每个组的订单总金额
-    grouped_total = data.groupby(['promo_code', 'year','month']).agg({'subtotal': 'sum'}).reset_index()
+    grouped_total = data.groupby(['promo_code', 'year', 'month']).agg({
+        'subtotal': 'sum'
+    }).reset_index()
     return grouped_total
 
-def getOrdersFromMongoDB(promocode='', search_term='', start_time='', end_time=''):
+
+def getOrdersFromMongoDB(promocode='',
+                         search_term='',
+                         start_time='',
+                         end_time=''):
     df = get_all_order()
     order_list = []
     # if promocode:
@@ -143,50 +166,69 @@ def getOrdersFromMongoDB(promocode='', search_term='', start_time='', end_time='
 
     influencer_collection = g.db['test2']["new_influencers"]
     influencer_list = list(influencer_collection.find({}, {'_id': 0}))
-    influencer_data = pd.json_normalize(influencer_list, 'product', meta=['influencer_name', 'promo_code'],
+    influencer_data = pd.json_normalize(influencer_list,
+                                        'product',
+                                        meta=['influencer_name', 'promo_code'],
                                         record_prefix='product_')
 
     # 展开嵌入式文件并转化为DataFrame
     datalist = order_list.to_dict(orient='records')
-    order_data = pd.json_normalize(datalist, 'lineitem', meta=['name', 'promo_code', 'fulfilled_at', 'subtotal'], record_prefix='lineitem_')
+    order_data = pd.json_normalize(
+        datalist,
+        'lineitem',
+        meta=['name', 'promo_code', 'fulfilled_at', 'subtotal'],
+        record_prefix='lineitem_')
 
     # order重命名
-    order_data = order_data.rename(columns={'lineitem_lineitem_sku': 'lineitem_sku'})
+    order_data = order_data.rename(
+        columns={'lineitem_lineitem_sku': 'lineitem_sku'})
 
     # 填充promo_code，修正和转换fulfilled_at列，提取年和月
     order_data['fulfilled_at'] = order_data['fulfilled_at'].str[:-6]
-    order_data['fulfilled_at'] = pd.to_datetime(order_data['fulfilled_at'], errors='coerce')
+    order_data['fulfilled_at'] = pd.to_datetime(order_data['fulfilled_at'],
+                                                errors='coerce')
     order_data['year'] = order_data['fulfilled_at'].dt.year
     order_data['month'] = order_data['fulfilled_at'].dt.month
     order_data['promo_code'].fillna(method='bfill', inplace=True)
     order_data['promo_code'].fillna(method='ffill', inplace=True)
 
     # 分组并计算每个promo_code各产品的订单总金额
-    grouped_product_subtotal = order_data.groupby(['promo_code', 'year', 'month', 'lineitem_sku']).agg(
-        {'subtotal': 'sum'}).reset_index()
+    grouped_product_subtotal = order_data.groupby(
+        ['promo_code', 'year', 'month', 'lineitem_sku']).agg({
+            'subtotal': 'sum'
+        }).reset_index()
 
     # 提取influencer分红信息
-    influencer_commission_rate = influencer_data[
-        ['promo_code', 'product_product_sku', 'product_commission']].rename(
-        columns={'product_product_sku': 'lineitem_sku'})
+    influencer_commission_rate = influencer_data[[
+        'promo_code', 'product_product_sku', 'product_commission'
+    ]].rename(columns={'product_product_sku': 'lineitem_sku'})
 
     # 转换commission数据类型
-    influencer_commission_rate['product_commission'] = influencer_commission_rate['product_commission'].str[:-1]
-    influencer_commission_rate['product_commission'] = influencer_commission_rate['product_commission'].astype(int)
+    influencer_commission_rate[
+        'product_commission'] = influencer_commission_rate[
+            'product_commission'].str[:-1]
+    influencer_commission_rate[
+        'product_commission'] = influencer_commission_rate[
+            'product_commission'].astype(int)
 
     # 拼接influencer分红信息和订单信息
-    influencer_order_commission = pd.merge(grouped_product_subtotal, influencer_commission_rate,
-                                            on=['promo_code', 'lineitem_sku'])
+    influencer_order_commission = pd.merge(grouped_product_subtotal,
+                                           influencer_commission_rate,
+                                           on=['promo_code', 'lineitem_sku'])
 
     # 计算分红
-    influencer_order_commission['Total_commission'] = influencer_order_commission['product_commission'] * influencer_order_commission['subtotal']
+    influencer_order_commission[
+        'Total_commission'] = influencer_order_commission[
+            'product_commission'] * influencer_order_commission['subtotal']
 
     return influencer_order_commission
+
 
 def countInfluencers():
     influencer_collection = getNewInfluencerListFromMongoDB()
     count = influencer_collection.count_documents({})
     return count
+
 
 def insertInfluencerData(influencer_data):
     promo_codes = [data['promo_code'] for data in influencer_data]
@@ -204,34 +246,41 @@ def insertInfluencerData(influencer_data):
         print("Data inserted successfully.")
         return 1
 
+
+# TODO: need to comfirm the sku
 def getInflencerProducts(influencer_name, search_term=''):
+
     # Get Influencers Infor and products
-    influencers_collection = g.db['test2']["new_influencers"]
-    influencer_info = influencers_collection.find_one({'influencer_name': influencer_name},
-                                                      {'id': 0})
+    influencer_info = Influencer.objects(
+        influencer_name=influencer_name).first().exclude('id')
     if influencer_info is None:
         print(f"No influncer found with name {influencer_name}")
         return
-    signed_products = influencer_info['product']
+
+    signed_products = influencer_info.product
 
     in_signed_products = []
 
     for product in signed_products:
         # Prepare the product dictionary
         product_info = {
-            'title': product.get('product_name'),
-            'commission_rate': product.get('commission', '8%'),  # Default to '8%' if not specified
+            'title': product.product.title,
+            'commission_rate':
+                product.commission,    # Default to '8%' if not specified
             'status': True,
-            'product_sku': product.get('product_sku'),
-            'start_time': product.get('product_contract_start'),
-            'end_time': product.get('product_contract_end')
+            'product_sku':
+                product.get('product_sku'),    # TODO: need to comfirm the sku
+            'start_time': product.product_contract_start,
+            'end_time': product.product_contract_end
         }
 
         normalized_search_term = search_term.strip().lower()
-        if not normalized_search_term or normalized_search_term in product_info['title'].lower():
+        if not normalized_search_term or normalized_search_term in product_info[
+                'title'].lower():
             in_signed_products.append(product_info)
 
     return in_signed_products
+
 
 # 获取所有签约的products 给管理员
 def get_signed_Products(search_term=''):
@@ -248,7 +297,8 @@ def get_signed_Products(search_term=''):
             # Prepare the product dictionary
             product_info = {
                 'title': product.get('product_name'),
-                'commission_rate': product.get('commission', '8%'),  # Default to '8%' if not specified
+                'commission_rate': product.get(
+                    'commission', '8%'),    # Default to '8%' if not specified
                 'status': True,
                 'product_sku': product.get('product_sku'),
                 'start_time': product.get('product_contract_start'),
@@ -256,7 +306,8 @@ def get_signed_Products(search_term=''):
             }
 
             normalized_search_term = search_term.strip().lower()
-            if not normalized_search_term or normalized_search_term in product_info['title'].lower():
+            if not normalized_search_term or normalized_search_term in product_info[
+                    'title'].lower():
                 all_signed_products.append(product_info)
 
     # # Get orders with promo code
@@ -286,16 +337,34 @@ def get_signed_Products(search_term=''):
 
     return all_signed_products
 
+
 # 获取所有products（products 这个列表）
 def get_all_products_mongodb(search_term=''):
     # Get all products
-    products_collection = g.db['test2']["products"]
+    # products_collection = g.db['test2']["products"]
+    # if search_term:
+    #     regex_pattern = f".*{search_term}.*"    # Create a regex pattern for fuzzy search
+    #     products = products_collection.find(
+    #         {"title": {
+    #             "$regex": regex_pattern,
+    #             "$options": "i"
+    #         }}, {'_id': 0})
+    # else:
+    #     products = products_collection.find({}, {'_id': 0})
+    # products = list(products)
+    # for product in products:
+    #     product['commission_rate'] = "8%"
+
+    # Get all products
     if search_term:
-        regex_pattern = f".*{search_term}.*"  # Create a regex pattern for fuzzy search
-        products = products_collection.find({"title": {"$regex": regex_pattern, "$options": "i"}},
-                                            {'_id': 0})
+        regex_pattern = f".*{search_term}.*"
+        # 使用 MongoEngine 进行模糊搜索和不区分大小写的匹配
+        products = Product.objects(title__icontains=regex_pattern).exclude('id')
     else:
-        products = products_collection.find({}, {'_id': 0})
+        # 获取所有产品并排除 '_id' 字段
+        products = Product.objects.exclude('id')
+
+    # 将查询结果转换为列表并添加佣金率
     products = list(products)
     for product in products:
         product['commission_rate'] = "8%"
