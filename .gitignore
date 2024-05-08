@@ -1,0 +1,6 @@
+flaskr/__pycache__/
+flaskr/product_mongo/__pycache__/
+services/*/__pycache__/
+.env
+services/aichatbot/__pycache__/
+services/aichatbot/models/

@@ -1,5 +1,5 @@
 import os
-from flask import Flask, abort
+from flask import Flask, abort, send_file
 from services.mongo import *
 from services.aichatbot.AIchatBotService import *
 from services.mongo.MongoService import *
@@ -12,10 +12,11 @@ from datetime import datetime, timedelta
 from functools import wraps
 from bson import binary
 from io import BytesIO
+import io
 import jwt
 import base64
 
-from flask import g, request, redirect, url_for, jsonify, render_template
+from flask import g, request, redirect, jsonify, render_template
 from flaskr.shp import *
 from flaskr.oai import *
 from flaskr.db import get_mongo_db, close_db
@@ -23,8 +24,8 @@ from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 
 from mongoengine import connect, Q
-from product_mongo.influencer_doc import *
-from product_mongo.mongo_doc import *
+from .product_mongo.influencer_doc import *
+from .product_mongo.mongo_doc import *
 import re
 
 
@@ -156,11 +157,9 @@ def create_app(test_config=None):
         email = data['email']
 
         if file:
-            # Convert file to binary
-            file_stream = BytesIO()
-            file.save(file_stream)
-            file_stream.seek(0)
-            binary_data = binary.Binary(file_stream.read())
+            file_data = file.read()
+            binary_data = binary.Binary(file_data)
+
         else:
             binary_data = None
 
@@ -213,6 +212,19 @@ def create_app(test_config=None):
         Influencer(**user_data).save()
 
         return jsonify({'message': 'Registration successful'}), 201
+
+    @app.route('/get_profile_photo/<email>', methods=['GET'])
+    def get_profile_photo(email):
+        influencers_collection = getNewInfluencerListFromMongoDB()
+        user = influencers_collection.find_one({"influencer_email": email})
+        if user and user['avatar']:
+            return send_file(
+                io.BytesIO(user['avatar']),
+                mimetype=
+                'image/jpeg'    # This assumes the image is JPEG. Adjust accordingly.
+            )
+        else:
+            return jsonify({'error': 'No photo found'}), 404
 
     @app.route('/confirm/<token>', methods=['GET'])
     def confirm_email(token):
@@ -572,13 +584,15 @@ def create_app(test_config=None):
 
         return jsonify({'products': products_list}), 200
 
-    # TODO: need to confirm the details
+    # TODO: need to confirm the logic
     @app.route('/yourproducts', methods=['POST'])
     @validate_json('influencer_name', 'role')
     def get_influencer_products():
         data = request.get_json()
         influencer_name = data.get('influencer_name')
-        search_term = data.get('search', '')
+        # 逻辑有问题，search_term为空时，default设置search_term为''而不是空，not ''为True，那最后都会加到products_list中
+        # search_term = data.get('search', '')
+        search_term = data.get('search')    #暂时改为不设置默认值，有问题指正我
 
         if not influencer_name:
             return jsonify({'message': 'Influencer name is required'}), 400
@@ -606,37 +620,44 @@ def create_app(test_config=None):
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
-    @app.route('/products')
-    def getProductsInfoFromMongoDB():
-        products_list = getProductListFromMongoDB()
+    # @app.route('/products')
+    # def getProductsInfoFromMongoDB():
+    #     products_list = getProductListFromMongoDB()
 
-        return jsonify({
-            'data': {
-                'products': products_list
-            },
-            'message': 'success'
-        }), 200
+    #     # user_data = {}
 
-    @app.route('/orders')
-    def getOrdersInfoFromMongoDB():
-        orders_list = getOrderListFromMongoDB()
-        return jsonify({
-            'data': {
-                'orders': orders_list
-            },
-            'message': 'success'
-        }), 200
+    #     products_list = [
+    #         product.to_mongo().to_dict() for product in products_list
+    #     ]
+    #     current_app.logger.info(products_list[0])
 
-    @app.route('/customers')
-    def getCustomersInfoFromMongoDB():
-        customers_list = getCustomerListFromMongoDB()
+    #     return jsonify({
+    #         'data': {
+    #             'products': products_list
+    #         },
+    #         'message': 'success'
+    #     }), 200
 
-        return jsonify({
-            'data': {
-                'customers': customers_list
-            },
-            'message': 'success'
-        }), 200
+    # @app.route('/orders')
+    # def getOrdersInfoFromMongoDB():
+    #     orders_list = getOrderListFromMongoDB()
+    #     return jsonify({
+    #         'data': {
+    #             'orders': orders_list
+    #         },
+    #         'message': 'success'
+    #     }), 200
+
+    # @app.route('/customers')
+    # def getCustomersInfoFromMongoDB():
+    #     customers_list = getCustomerListFromMongoDB()
+
+    #     return jsonify({
+    #         'data': {
+    #             'customers': customers_list
+    #         },
+    #         'message': 'success'
+    #     }), 200
 
     @app.route('/influencers')
     def getInfluencersInfoFromMongoDB():

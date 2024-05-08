@@ -1,6 +1,5 @@
 # fmt: off
-from basic_doc import OrderApp
-from basic_doc import *
+from .basic_doc import *
 from mongoengine import CASCADE, PULL, LazyReferenceField,ReferenceField
 
 

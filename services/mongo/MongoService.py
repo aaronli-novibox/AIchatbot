@@ -1,14 +1,15 @@
 from flask import g, current_app
 import pandas as pd
 import numpy as np
-from ...flaskr.product_mongo import *
+from flaskr.product_mongo import *
 from mongoengine import Q
 
 
 # return cursor type, and filter '_id' field
 def getProductListFromMongoDB():
 
-    products = Product.objects.exclude('id')
+    products = Product.objects.exclude('id', 'descriptionVector')
+
     return list(products)    # 返回产品列表
 
 
@@ -247,7 +248,6 @@ def insertInfluencerData(influencer_data):
         return 1
 
 
-# TODO: need to comfirm the sku
 def getInflencerProducts(influencer_name, search_term=''):
 
     # Get Influencers Infor and products
@@ -264,14 +264,25 @@ def getInflencerProducts(influencer_name, search_term=''):
     for product in signed_products:
         # Prepare the product dictionary
         product_info = {
-            'title': product.product.title,
+            'title':
+                product.product.title,
             'commission_rate':
                 product.commission,    # Default to '8%' if not specified
-            'status': True,
-            'product_sku':
-                product.get('product_sku'),    # TODO: need to comfirm the sku
-            'start_time': product.product_contract_start,
-            'end_time': product.product_contract_end
+            'status':
+                True,
+            'product_shopify_id':
+                product.product.shopify_id,
+            'start_time':
+                product.product_contract_start,
+            'end_time':
+                product.product_contract_end,
+            'status':
+                True
+                if product.product_contract_end > datetime.now() else False,
+            'featuredImage':
+                product.product.featuredImage,
+            'onlineStoreUrl':
+                product.product.onlineStoreUrl,
         }
 
         normalized_search_term = search_term.strip().lower()
