@@ -1,5 +1,5 @@
 import os
-from flask import Flask, abort
+from flask import Flask, abort, send_file
 from services.mongo import *
 from services.aichatbot.AIchatBotService import *
 from services.mongo.MongoService import *
@@ -12,11 +12,12 @@ from datetime import datetime, timedelta
 from functools import wraps
 from bson import binary
 from io import BytesIO
+import io
 import jwt
 import base64
 
 from dotenv import load_dotenv
-from flask import g, request, redirect, url_for, jsonify, render_template
+from flask import g, request, redirect, jsonify, render_template
 from flaskr.shp import *
 from flaskr.oai import *
 from flaskr.db import get_mongo_db, close_db
@@ -91,19 +92,25 @@ def create_app(test_config=None):
 
     @app.route('/register', methods=['POST'])
     def register():
+        print("register")
         data = request.form
         file = request.files.get('avatar')
         confirm = False
         email = data['email']
 
         if file:
-            # Convert file to binary
-            file_stream = BytesIO()
-            file.save(file_stream)
-            file_stream.seek(0)
-            binary_data = binary.Binary(file_stream.read())
+            file_data = file.read()
+            binary_data = binary.Binary(file_data)
+            print("data loaded")
+        # if file:
+        #     # Convert file to binary
+        #     file_stream = BytesIO()
+        #     file.save(file_stream)
+        #     file_stream.seek(0)
+        #     binary_data = binary.Binary(file_stream.read())
         else:
             binary_data = None
+
         influencers_collection = getNewInfluencerListFromMongoDB();
         # Check if user already exists
         if email != app.config['BDEMAIL']:
@@ -154,6 +161,24 @@ def create_app(test_config=None):
         # Insert into MongoDB
         influencers_collection.insert_one(user_data)
         return jsonify({'message': 'Registration successful'}), 201
+    
+    @app.route('/get_profile_photo/<email>', methods=['GET'])
+    def get_profile_photo(email):
+        print("called")
+        influencers_collection = getNewInfluencerListFromMongoDB();
+        user = influencers_collection.find_one({"influencer_email": email})
+        if not user:
+            return jsonify({'error': 'No user found'}), 404
+        if user['avatar']:
+            print("hello")
+            #return 200
+            return send_file(
+                io.BytesIO(user['avatar']),
+                mimetype='image/jpeg'  # This assumes the image is JPEG. Adjust accordingly.
+            )
+        else:
+            return jsonify({'error': 'No photo found'}), 404
+            
 
     @app.route('/confirm/<token>', methods=['GET'])
     def confirm_email(token):
