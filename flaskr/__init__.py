@@ -158,9 +158,7 @@ def create_app(test_config=None):
     def get_profile_photo(email):
         influencers_collection = getNewInfluencerListFromMongoDB();
         user = influencers_collection.find_one({"influencer_email": email})
-        if not user:
-            return jsonify({'error': 'No user found'}), 404
-        if user['avatar']:
+        if user and user['avatar']:
             return send_file(
                 io.BytesIO(user['avatar']),
                 mimetype='image/jpeg'  # This assumes the image is JPEG. Adjust accordingly.
