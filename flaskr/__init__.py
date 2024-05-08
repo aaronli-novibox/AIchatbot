@@ -92,7 +92,6 @@ def create_app(test_config=None):
 
     @app.route('/register', methods=['POST'])
     def register():
-        print("register")
         data = request.form
         file = request.files.get('avatar')
         confirm = False
@@ -102,12 +101,6 @@ def create_app(test_config=None):
             file_data = file.read()
             binary_data = binary.Binary(file_data)
             print("data loaded")
-        # if file:
-        #     # Convert file to binary
-        #     file_stream = BytesIO()
-        #     file.save(file_stream)
-        #     file_stream.seek(0)
-        #     binary_data = binary.Binary(file_stream.read())
         else:
             binary_data = None
 
@@ -164,14 +157,11 @@ def create_app(test_config=None):
     
     @app.route('/get_profile_photo/<email>', methods=['GET'])
     def get_profile_photo(email):
-        print("called")
         influencers_collection = getNewInfluencerListFromMongoDB();
         user = influencers_collection.find_one({"influencer_email": email})
         if not user:
             return jsonify({'error': 'No user found'}), 404
         if user['avatar']:
-            print("hello")
-            #return 200
             return send_file(
                 io.BytesIO(user['avatar']),
                 mimetype='image/jpeg'  # This assumes the image is JPEG. Adjust accordingly.
