@@ -100,7 +100,6 @@ def create_app(test_config=None):
         if file:
             file_data = file.read()
             binary_data = binary.Binary(file_data)
-            print("data loaded")
         else:
             binary_data = None
 
