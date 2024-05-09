@@ -541,7 +541,7 @@ def create_app(test_config=None):
         domain = app.config["BASEURL"]
         link = f"{domain}{reset_path}"
         # msg.body = f'Your link to reset your password is {link}'
-        msg.html = render_template('email/email_template.html',
+        msg.html = render_template('email_template.html',
                                    link=link,
                                    username="Test")
         try:
