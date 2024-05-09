@@ -700,7 +700,9 @@ def create_app(test_config=None):
     @app.route('/recommand-list', methods=['POST'])
     def recommand_by_list():
         req = request.json()
+        current_app.logger.info(req)
         try:
+            current_app.logger.info('recommand by list')
             res, status_code = recommandGiftByList(req)
             return jsonify(res), status_code
         except Exception as error:
