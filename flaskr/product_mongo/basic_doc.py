@@ -200,6 +200,14 @@ class InventoryQuantity(Document):
     quantity = IntField(required=True)
     updatedAt = DateTimeField(default=datetime.now)
 
+class Metafield(Document):
+
+    shopify_id = StringField(required=True, unique=True, help_text="Globally unique identifier.")
+    namespace = StringField(required=True, help_text="The container for a set of metadata.")
+    key = StringField(required=True, help_text="A unique identifier for the metafield.")
+    value = StringField(required=True, help_text="Information to be stored as metadata.")
+
+
 
 class LocationAddress(EmbeddedDocument):
     address1 = StringField(help_text="The first line of the address for the location.")

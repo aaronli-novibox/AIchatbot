@@ -370,10 +370,30 @@ def get_all_products_mongodb(search_term=''):
     if search_term:
         regex_pattern = f".*{search_term}.*"
         # 使用 MongoEngine 进行模糊搜索和不区分大小写的匹配
-        products = Product.objects(title__icontains=regex_pattern).exclude('id')
+        products = Product.objects(title__icontains=regex_pattern).only(
+            'title',
+            'shopify_id',
+            'description',
+            'featuredImage',
+            'onlineStoreUrl',
+            'priceRangeV2',
+            'tags',
+            'productType',
+        )
     else:
         # 获取所有产品并排除 '_id' 字段
-        products = Product.objects.exclude('id')
+        products = Product.objects.only(
+            'title',
+            'shopify_id',
+            'description',
+            'featuredImage',
+            'onlineStoreUrl',
+            'priceRangeV2',
+            'tags',
+            'productType',
+        )
+
+    products = products.to_mongo().to_dict('records')
 
     # 将查询结果转换为列表并添加佣金率
     products = list(products)

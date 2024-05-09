@@ -685,21 +685,54 @@ def create_app(test_config=None):
         else:
             return jsonify({'msg': 'Not admin account'}), 200
 
-    # aichatbot service that need to be updated
+    #########################################################
+    #################### aichatbot service ##################
+    #########################################################
     @app.route('/user-typing', methods=['POST'])
     def user_typing():
-        req = request.json
-        return userTyping(req)
+        req = request.json()
+        try:
+            res, status_code = userTyping(req)
+            return jsonify(res), status_code
+        except Exception as error:
+            return jsonify({'message': error}), 400
 
     @app.route('/recommand-list', methods=['POST'])
     def recommand_by_list():
-        req = request.json
-        return recommandGiftByList(req)
+        req = request.json()
+        try:
+            res, status_code = recommandGiftByList(req)
+            return jsonify(res), status_code
+        except Exception as error:
+            return jsonify({'message': error}), 400
 
     @app.route('/recommand-user-typing', methods=['POST'])
     def recommand_by_user_typing():
-        req = request.json
-        return recommandGiftByUserInput(req)
+        data = request.get_json()
+        user_input = data.get('user_typing')
+        try:
+            result = write_by_ai(user_input)
+            return jsonify({'result': result}), 200
+        except Exception as error:
+            return jsonify({'error': error}), 400
+
+    @app.route('/recommand-typing', methods=['POST'])
+    def recommand_by_typing():
+        data = request.get_json()
+        try:
+            res, status_code = recommandGiftByUserInput(data)
+            return jsonify(res), status_code
+        except Exception as error:
+            return jsonify({'message': error}), 400
+
+    @app.route('/gift-swip', methods=['POST'])
+    def recommand_by_tags():
+        data = request.get_json()
+        try:
+            res, status_code = recommandGiftByTags(data)
+            return jsonify(res), status_code
+        except Exception as error:
+            return jsonify({'message': error}), 400
 
     @app.route('/')
     def hello_novi_box():
