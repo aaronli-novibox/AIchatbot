@@ -29,7 +29,7 @@ def getCustomerListFromMongoDB():
 
 def getInfluencerListFromMongoDB():
 
-    influencers = Influencer.orders.exxclude('id')
+    influencers = Influencer.objects.exclude('id')
 
     return list(influencers)    # 返回影响者列表
 

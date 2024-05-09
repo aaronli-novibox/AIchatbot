@@ -541,7 +541,7 @@ def create_app(test_config=None):
         domain = app.config["BASEURL"]
         link = f"{domain}{reset_path}"
         # msg.body = f'Your link to reset your password is {link}'
-        msg.html = render_template('email/email_template.html',
+        msg.html = render_template('email_template.html',
                                    link=link,
                                    username="Test")
         try:
@@ -690,7 +690,7 @@ def create_app(test_config=None):
     #########################################################
     @app.route('/user-typing', methods=['POST'])
     def user_typing():
-        req = request.json()
+        req = request.json
         try:
             res, status_code = userTyping(req)
             return jsonify(res), status_code
@@ -699,8 +699,7 @@ def create_app(test_config=None):
 
     @app.route('/recommand-list', methods=['POST'])
     def recommand_by_list():
-        req = request.json()
-        current_app.logger.info(req)
+        req = request.json
         try:
             current_app.logger.info('recommand by list')
             res, status_code = recommandGiftByList(req)

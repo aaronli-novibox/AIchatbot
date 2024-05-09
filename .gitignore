@@ -4,3 +4,4 @@ services/*/__pycache__/
 .env
 services/aichatbot/__pycache__/
 services/aichatbot/models/
+services/aichatbot/models.zip
