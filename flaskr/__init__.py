@@ -201,10 +201,10 @@ def create_app(test_config=None):
             "shipping_address": data.get('shippingAddress'),
             "phone": data.get('phone'),
             "bio": data.get('bio'),
-            "collaboration": data.get('collaborations'),
-            "audience": data.get('audience'),
-            "niche": data.get('niches'),
-            "interest": data.get('interests'),
+            "collaboration": data.get('collaborations', default=[]),
+            "audience": data.get('audience', default=[]),
+            "niche": data.get('niches', default=[]),
+            "interest": data.get('interests', default=[]),
             "is_email_confirmed": confirm
         }
 

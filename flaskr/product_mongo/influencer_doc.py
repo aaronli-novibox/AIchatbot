@@ -34,13 +34,13 @@ class Influencer(Document):
     country = StringField()
     city_state = StringField()
     age = StringField()
-    audience = ListField(StringField())
+    audience = ListField(StringField(), default=[])
     phone = StringField()
     shipping_address = StringField()
 
-    collaboration = ListField(StringField())
-    niche = ListField(StringField())
-    interest = ListField(StringField())
+    collaboration = ListField(StringField(), default=[])
+    niche = ListField(StringField(), default=[])
+    interest = ListField(StringField(), default=[])
     password = StringField()
 
     type = StringField()
@@ -48,7 +48,7 @@ class Influencer(Document):
     avatar = BinaryField()    # BINARY DATA
     role = StringField()
 
-    orders = ListField(ReferenceField(Order))
+    orders = ListField(ReferenceField(Order), default=[])
 
     is_email_confirmed = BooleanField()
 
