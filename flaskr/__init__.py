@@ -3,6 +3,7 @@ from flask import Flask, abort, send_file
 from services.mongo import *
 from services.aichatbot.AIchatBotService import *
 from services.mongo.MongoService import *
+from services.webhook.webhookService import *
 from bson.objectid import ObjectId
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -27,6 +28,8 @@ from mongoengine import connect, Q
 from .product_mongo.influencer_doc import *
 from .product_mongo.mongo_doc import *
 import re
+import hmac
+import hashlib
 
 
 def load_model() -> FlagModel:
@@ -156,6 +159,15 @@ def create_app(test_config=None):
         confirm = False
         email = data['email']
 
+        collaborations = json.loads(data.get('collaborations', '[]'))
+        niches = json.loads(data.get('niches', '[]'))
+        interests = json.loads(data.get('interests', '[]'))
+        audiences = json.loads(data.get('audience', '[]'))
+
+        collaboration = [Collaboration(**data) for data in collaborations]
+        niche = [Niche(**data) for data in niches]
+        interest = [Interest(**data) for data in interests]
+
         if file:
             file_data = file.read()
             binary_data = binary.Binary(file_data)
@@ -201,10 +213,10 @@ def create_app(test_config=None):
             "shipping_address": data.get('shippingAddress'),
             "phone": data.get('phone'),
             "bio": data.get('bio'),
-            "collaboration": data.get('collaborations', default=[]),
-            "audience": data.get('audience', default=[]),
-            "niche": data.get('niches', default=[]),
-            "interest": data.get('interests', default=[]),
+            "collaboration": collaboration,
+            "audience": audiences,
+            "niche": niche,
+            "interest": interest,
             "is_email_confirmed": confirm
         }
 
@@ -331,7 +343,7 @@ def create_app(test_config=None):
 
         # Convert MongoDB documents to a JSON serializable format
         user_data = {}
-        for key, value in user.items():
+        for key, value in user.to_mongo().items():
             if isinstance(value, ObjectId):
                 user_data[key] = str(value)
             elif isinstance(value, bytes):
@@ -468,15 +480,14 @@ def create_app(test_config=None):
             influencer_name=influencer_name).first()
 
         if influencer_data is not None:
-            products_list = influencer_data.get('product', [])
+            products_list = influencer_data.product
             promocode = influencer_data.promo_code
 
         order_nums = 0
         Total_Commissions = 0
         last_month_orders = 0
 
-        order_list = getOrderCollection().find({'promo_code': promocode},
-                                               {'_id': 0})
+        order_list = Order.objects(discountCode=promocode)
 
         order_list = list(order_list)
 
@@ -724,7 +735,11 @@ def create_app(test_config=None):
             res, status_code = recommandGiftByUserInput(data)
             return jsonify(res), status_code
         except Exception as error:
-            return jsonify({'message': error}), 400
+            return jsonify({
+                'code': "0001",
+                "data": None,
+                'message': error
+            }), 400
 
     @app.route('/gift-swip', methods=['POST'])
     def recommand_by_tags():
@@ -734,6 +749,33 @@ def create_app(test_config=None):
             return jsonify(res), status_code
         except Exception as error:
             return jsonify({'message': error}), 400
+
+    #########################################################
+    #####################  webhook service ##################
+    #########################################################
+    def verify_webhook(data, hmac_header):
+        digest = hmac.new(app.config['SHOPIFY_API_PASSWORD'].encode('utf-8'),
+                          data,
+                          digestmod=hashlib.sha256).digest()
+        computed_hmac = base64.b64encode(digest)
+
+        return hmac.compare_digest(computed_hmac, hmac_header.encode('utf-8'))
+
+    @app.route('/webhook', methods=['POST'])
+    def handle_webhook():
+
+        data = request.get_data()
+        # 现在不知道私钥是什么
+        # verified = verify_webhook(data,
+        #                           request.headers.get('X-Shopify-Hmac-SHA256'))
+
+        # if not verified:
+        #     abort(401)
+
+        # Process webhook payload
+        webhookService(data)
+
+        return ('', 200)
 
     @app.route('/')
     def hello_novi_box():

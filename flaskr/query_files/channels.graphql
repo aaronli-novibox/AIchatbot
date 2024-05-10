@@ -1,0 +1,26 @@
+    query GetOneProductChannel($channel_id: ID!){
+        channel(channel_id) {
+            # Channel fields
+            id
+            name
+            supportsFuturePublishing
+            handle
+            navigationItems
+            overviewPath
+        }
+    }
+
+    query GetManyProductChannel($channel_id: [ID]!){
+        
+        nodes(ids: $channel_id){
+            channel{
+                # Channel fields
+                id
+                name
+                supportsFuturePublishing
+                handle
+                navigationItems
+                overviewPath
+            }
+        }
+    }

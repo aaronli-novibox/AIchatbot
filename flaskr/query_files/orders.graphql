@@ -1,0 +1,803 @@
+    fragment OrderInfo on Order {
+        
+            additionalFees{
+                id
+                name
+                price{
+                    presentmentMoney{
+                            amount
+                            currencyCode
+                        }
+                        shopMoney{
+                            amount
+                            currencyCode
+                        }
+                }
+                taxLines{
+                    channelLiable
+                    priceSet{
+                        presentmentMoney{
+                            amount
+                            currencyCode
+                        }
+                        shopMoney{
+                            amount
+                            currencyCode
+                        }
+                    }
+                    rate
+                    ratePercentage
+                    title
+                    price
+                }
+            }
+            app{
+                icon{
+                    url
+                }
+                id
+                name
+            }
+            billingAddress{
+                address1
+                address2
+                city
+                company
+                coordinatesValidated
+                country
+                countryCodeV2
+                firstName
+                formattedArea
+                id
+                lastName
+                latitude
+                longitude
+                name
+                phone
+                province
+                provinceCode
+                timeZone
+                zip
+            }
+            billingAddressMatchesShippingAddress
+            canMarkAsPaid
+            canNotifyCustomer
+            cancelReason
+            cancellation{
+                staffNote
+            }
+            cancelledAt
+            capturable
+            cartDiscountAmountSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+
+            clientIp
+            closedAt
+            confirmationNumber
+            confirmed
+            createdAt
+            currencyCode
+            currentCartDiscountAmountSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            currentSubtotalLineItemsQuantity
+            currentSubtotalPriceSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            currentTaxLines{
+                channelLiable
+                priceSet{
+                    presentmentMoney{
+                        amount
+                        currencyCode
+                    }
+                    shopMoney{
+                        amount
+                        currencyCode
+                    }
+                }
+                rate
+                ratePercentage
+                title
+            }
+            currentTotalAdditionalFeesSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            currentTotalDiscountsSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            currentTotalPriceSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            currentTotalTaxSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            currentTotalWeight
+            customAttributes{
+                key
+                value
+            }
+            customer{
+                id
+            }
+            customerAcceptsMarketing
+            customerLocale
+            discountCode
+            discountCodes
+            displayAddress{
+                address1
+                address2
+                city
+                company
+                coordinatesValidated
+                country
+                countryCodeV2
+                firstName
+                formattedArea
+                id
+                lastName
+                latitude
+                longitude
+                name
+                phone
+                province
+                provinceCode
+                timeZone
+                zip
+            }
+            displayFinancialStatus
+            displayFulfillmentStatus
+            disputes{
+                id
+                initiatedAs
+                status
+            }
+            edited
+            email
+            estimatedTaxes
+            fulfillable
+            fullyPaid
+            hasTimelineComment
+            id
+            legacyResourceId
+            merchantEditable
+            merchantEditableErrors
+            merchantOfRecordApp{
+                icon{
+                    url
+                }
+                id
+                name
+            }
+            name
+            netPaymentSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            note
+            originalTotalAdditionalFeesSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            originalTotalDutiesSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            originalTotalPriceSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            paymentCollectionDetails{
+                additionalPaymentCollectionUrl
+                #vaultedPaymentMethods{
+                    #id
+                    #paymentInstrument{
+                    #    VaultCreditCard{
+                    #        billingAddress{
+                    #            address1
+                    #            address2
+                    #            city
+                    #            company
+                    #            coordinatesValidated
+                    #            country
+                    #            countryCodeV2
+                    #            firstName
+                    #            formattedArea
+                    #            id
+                    #            lastName
+                    #            latitude
+                    #            longitude
+                    #            name
+                    #            phone
+                    #            province
+                    #            provinceCode
+                    #            timeZone
+                    #            zip
+                    #        }
+                    #        brand
+                    #        expired
+                    #        expiryMonth
+                    #        expiryYear
+                    #        lastDigits
+                    #        name
+                    #    }
+                    #    VaultPaypalBillingAgreement{
+                    #        inactive
+                    #        name
+                    #        paypalAccountEmail
+                    #    }
+                    #}
+                #}
+            }
+            paymentGatewayNames
+            paymentTerms{
+                id
+                dueInDays
+                order{
+                    id
+                }
+                overdue
+                paymentTermsName
+                paymentTermsType
+                translatedName
+            }
+            phone
+            poNumber
+            presentmentCurrencyCode
+            processedAt
+            refundDiscrepancySet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            refundable
+            registeredSourceUrl
+            requiresShipping
+            restockable
+            returnStatus
+            shippingAddress{
+                address1
+                address2
+                city
+                company
+                coordinatesValidated
+                country
+                countryCodeV2
+                firstName
+                formattedArea
+                id
+                lastName
+                latitude
+                longitude
+                name
+                phone
+                province
+                provinceCode
+                timeZone
+                zip
+            }
+
+            shippingLine{
+                carrierIdentifier
+                code
+                custom
+                deliveryCategory
+                discountAllocations{
+                    allocatedAmountSet{
+                        presentmentMoney{
+                            amount
+                            currencyCode
+                        }
+                        shopMoney{
+                            amount
+                            currencyCode
+                        }
+                    }
+                    discountApplication{
+                        allocationMethod
+                        targetSelection
+                        targetType
+                        #value{
+                        #    MoneyV2{
+                        #        amount
+                        #        currencyCode
+                        #    }
+                        #    PricingPercentageValue{
+                        #        percentage
+                        #    }
+                        #}
+                        index
+                    }
+                    
+                }
+                discountedPriceSet{
+                    presentmentMoney{
+                        amount
+                        currencyCode
+                    }
+                    shopMoney{
+                        amount
+                        currencyCode
+                    }
+                }
+                id
+                #isRemoved
+                originalPriceSet{
+                    presentmentMoney{
+                        amount
+                        currencyCode
+                    }
+                    shopMoney{
+                        amount
+                        currencyCode
+                    }
+                }
+                phone
+                requestedFulfillmentService{
+                    callbackUrl
+                    handle
+                    id
+                    inventoryManagement
+                    location{
+                        id
+                        name
+                        activatable
+                        address{
+                            address1
+                            address2
+                            city
+                            country
+                            countryCode
+                            formatted
+                            latitude
+                            longitude
+                            phone
+                            province
+                            provinceCode
+                            zip
+                        }
+                        addressVerified
+                        #createdAt
+                        deactivatable
+                        deactivatedAt
+                        deletable
+                        fulfillmentService{
+                            callbackUrl
+                            handle
+                            id
+                            inventoryManagement
+                            location{
+                                id
+                            }
+                            permitsSkuSharing
+                            productBased
+                            serviceName
+                            type
+                        }
+                        fulfillsOnlineOrders
+                        hasActiveInventory
+                        hasUnfulfilledOrders
+                        #inventoryLevel{
+                        #    id
+                        #    canDeactivate
+                        #    createdAt
+                        #    deactivationAlert
+                        #    updatedAt
+                        #    # The quantities field takes an array of inventory states, which include the following: `incoming`, `on_hand`, `available`, `committed`, `reserved`, `damaged`, `safety_stock`, and `quality_control`.
+                        #    quantities(names: ["available", "on_hand", "reserved", "committed"]) {
+                        #        id
+                        #        name
+                        #        quantity
+                        #        updatedAt
+                        #    }
+                        #    location{
+                        #    id
+                        #    name
+                        #    }
+                        #    item{
+                        #        id
+                        #    }
+                        #}
+                        isActive
+                        #isFulfillmentService
+                        legacyResourceId
+                        localPickupSettingsV2{
+                            instructions
+                            pickupTime
+                        }
+                        name
+                        shipsInventory
+                        suggestedAddresses{
+                            address1
+                            address2
+                            city
+                            country
+                            countryCode
+                            formatted
+                            province
+                            provinceCode
+                            zip
+                        }
+                        #updatedAt
+                    }
+                    permitsSkuSharing
+                    productBased
+                    serviceName
+                    type
+                }
+                shippingRateHandle
+                source
+                taxLines{
+                    channelLiable
+                    priceSet{
+                        presentmentMoney{
+                            amount
+                            currencyCode
+                        }
+                        shopMoney{
+                            amount
+                            currencyCode
+                        }
+                    }
+                    rate
+                    ratePercentage
+                    title
+                }
+                title
+
+            }
+
+            sourceIdentifier
+            subtotalLineItemsQuantity
+            subtotalPriceSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            tags
+            taxExempt
+            taxLines{
+                channelLiable
+                priceSet{
+                    presentmentMoney{
+                        amount
+                        currencyCode
+                    }
+                    shopMoney{
+                        amount
+                        currencyCode
+                    }
+                }
+                rate
+                ratePercentage
+                title
+            }
+            taxesIncluded
+            test
+            totalCapturableSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            totalDiscountsSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            totalOutstandingSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            totalPriceSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            totalReceivedSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            totalRefundedSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            totalRefundedShippingSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            totalShippingPriceSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            totalTaxSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            totalTipReceivedSet{
+                presentmentMoney{
+                    amount
+                    currencyCode
+                }
+                shopMoney{
+                    amount
+                    currencyCode
+                }
+            }
+            totalWeight
+            transactions{
+                accountNumber
+                    amountSet{
+                        presentmentMoney{
+                        amount
+                        currencyCode
+                    }
+                    shopMoney{
+                        amount
+                        currencyCode
+                    }
+                }
+                authorizationCode
+                authorizationExpiresAt
+                createdAt
+                errorCode
+                fees{
+                    id
+                    amount{
+                        amount
+                        currencyCode
+                    }
+                    flatFee{
+                        amount
+                        currencyCode
+                    }
+                    flatFeeName
+                    rate
+                    rateName
+                    taxAmount{
+                        amount
+                        currencyCode
+                    }
+                    type
+                }
+                formattedGateway
+                gateway
+                id
+                kind
+                manuallyCapturable
+                maximumRefundableV2{
+                    amount
+                    currencyCode
+                }
+                multiCapturable
+                order{
+                    id
+                    
+                }
+                parentTransaction{
+                    id
+                }
+                #paymentDetails{
+                #    cardPaymentDetails{
+                #        cardBrand
+                #        last4
+                #    }
+                #}
+                paymentIcon{
+                    url
+                }
+                paymentId
+                processedAt
+                receiptJson
+                settlementCurrency
+                settlementCurrencyRate
+                shopifyPaymentsSet{
+                    extendedAuthorizationSet{
+                        extendedAuthorizationExpiresAt
+                        standardAuthorizationExpiresAt
+                    }
+                    refundSet{
+                        acquirerReferenceNumber
+                    }
+                }
+                status
+                test
+                totalUnsettledSet{
+                    presentmentMoney{
+                        amount
+                        currencyCode
+                    }
+                    shopMoney{
+                        amount
+                        currencyCode
+                    }
+                }
+                #user{
+                #    email
+                #    firstName
+                #    lastName
+                #    id
+                #    active
+                #    avatar{
+                #        url
+                #    }
+                #    initials
+                #    email
+                #    exists
+                #    firstName
+                #    id
+                #    initials
+                #    isShopOwner
+                #    lastName
+                #    locale
+                #    name
+                #    phone
+                #    privateData{
+                #        accountSettingsUrl
+                #        createdAt
+                #    }
+                #}
+            }
+            unpaid
+            updatedAt
+
+
+        
+
+
+
+
+
+    }
+
+    query GetManyOrders($order_ids: [ID!]!){
+        nodes(ids: $order_ids) {
+            ... on Order{
+                ...OrderInfo
+            }
+        }
+    }
+    
+
+    query GetOneOrder($order_id: ID!){
+        node(id: $order_id){
+            ... on Order{
+            ...OrderInfo
+            }
+        }
+    }
+

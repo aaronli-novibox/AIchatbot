@@ -13,6 +13,29 @@ class InfluencerProduct(EmbeddedDocument):
     video_exposure = StringField()
 
 
+class Platform(EmbeddedDocument):
+    label = StringField()
+
+
+class Collaboration(EmbeddedDocument):
+
+    platform = EmbeddedDocumentField(Platform)
+    link = StringField()
+
+
+class Niche(EmbeddedDocument):
+    label = StringField()
+    group = StringField()
+
+
+class Interest(EmbeddedDocument):
+    label = StringField()
+    group = StringField()
+
+
+# class Audience(EmbeddedDocument):
+
+
 # novi box自建数据库，shopify没有的
 class Influencer(Document):
 
@@ -38,9 +61,9 @@ class Influencer(Document):
     phone = StringField()
     shipping_address = StringField()
 
-    collaboration = ListField(StringField(), default=[])
-    niche = ListField(StringField(), default=[])
-    interest = ListField(StringField(), default=[])
+    collaboration = ListField(EmbeddedDocumentField(Collaboration), default=[])
+    niche = ListField(EmbeddedDocumentField(Niche), default=[])
+    interest = ListField(EmbeddedDocumentField(Interest), default=[])
     password = StringField()
 
     type = StringField()

@@ -1,0 +1,45 @@
+    fragment VariantsInfo on productVariants {
+        availableForSale
+        barcode
+        compareAtPrice
+        createdAt
+        defaultCursor
+        displayName
+        id
+        image{
+            url
+        }
+        inventoryPolicy
+        inventoryQuantity
+        legacyResourceId
+        position
+        price
+        product{
+            id
+        }
+        requiresComponents
+        sellableOnlineQuantity
+        sellingPlanGroupCount
+        sku
+        taxCode
+        taxable
+        title
+        updatedAt
+        weight
+        weightUnit
+        inventoryItem {
+            id
+        }
+    }
+    
+    query GetOneVarient($varient_id: ID!){
+        node(id: $varient_id){
+            ...VariantsInfo
+        }
+    }
+
+    query GetManyVarients($varient_ids: [ID!]!){
+        nodes(ids: $varient_ids){
+           ...VariantsInfo
+        }
+    }

@@ -43,4 +43,8 @@ def write_by_ai(input: str) -> str:
             "content": prompt
         }])
     res = response.choices[0].message.content
-    return res.replace('"', "")
+    return {
+        'code': "0000",
+        'message': "Success",
+        'data': res.replace('"', "")
+    }, 200
