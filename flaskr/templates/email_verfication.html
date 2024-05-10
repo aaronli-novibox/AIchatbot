@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Reset Request</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .header, .footer {
+            text-align: center;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .header {
+            border-bottom: 2px solid #805bac; /* Purple color for the line */
+        }
+        .footer {
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+        .button {
+            display: block;
+            width: fit-content;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: #805bac; /* Purple background */
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .button:hover {
+            background-color: #6d489c; /* Darker purple on hover */
+        }
+        .info-text {
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <img src="https://thenovibox.com/cdn/shop/files/logo.png" alt="Novibox Logo" width="120">
+    </div>
+    <h1>Hi {{username}},</h1>
+    <p class="info-text">We received a registeration request for your Novibox account. Please click the button below to verify your email.</p>
+    <a href="{{ link }}" class="button">Verify Email</a>
+    <p class="info-text"><strong>This link expires in 1 hour.</strong> If you did not register at Novibox, please ignore this email.</p>
+    <p class="info-text">For your security, do not share this email with anyone.</p>
+    <div class="footer">
+        <p>Novibox Inc.</p>
+        <p>Visit our <a href="https://thenovibox.com/">website</a> for more updates and support.</p>
+    </div>
+</div>
+</body>
+</html>
