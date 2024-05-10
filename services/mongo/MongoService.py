@@ -368,7 +368,7 @@ def get_all_products_mongodb(search_term=''):
     if search_term:
         regex_pattern = f".*{search_term}.*"
         # 使用 MongoEngine 进行模糊搜索和不区分大小写的匹配
-        products = Product.objects(title__icontains=regex_pattern).only(
+        products = Product.objects(title__iregex=regex_pattern).only(
             'title',
             'shopify_id',
             'description',
@@ -391,13 +391,12 @@ def get_all_products_mongodb(search_term=''):
             'productType',
         ).exclude('id')
 
-    current_app.logger.info("here")
-
+    print(products)
     product_list = []
     for product in products:
 
         product_list.append(product.to_mongo().to_dict())
         # 将查询结果转换为列表并添加佣金率
         product_list[-1]['commission_rate'] = "8%"
-    current_app.logger.info("here")
+
     return product_list
