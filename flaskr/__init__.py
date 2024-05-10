@@ -207,7 +207,7 @@ def create_app(test_config=None):
             "interest": data.get('interests', default=[]),
             "is_email_confirmed": confirm
         }
-
+        
         # Save user data to MongoDB
         Influencer(**user_data).save()
 

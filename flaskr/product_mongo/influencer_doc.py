@@ -34,13 +34,13 @@ class Influencer(Document):
     country = StringField()
     city_state = StringField()
     age = StringField()
-    audience = ListField(StringField(), default=[])
+    audience = StringField()
     phone = StringField()
     shipping_address = StringField()
 
-    collaboration = ListField(StringField(), default=[])
-    niche = ListField(StringField(), default=[])
-    interest = ListField(StringField(), default=[])
+    collaboration = StringField()
+    niche = StringField()
+    interest = StringField()
     password = StringField()
 
     type = StringField()
