@@ -227,8 +227,9 @@ def create_app(test_config=None):
 
     @app.route('/get_profile_photo/<email>', methods=['GET'])
     def get_profile_photo(email):
-        influencers_collection = getNewInfluencerListFromMongoDB()
-        user = influencers_collection.find_one({"influencer_email": email})
+
+        user = Influencer.objects(influencer_email=email).first()
+
         if user and user['avatar']:
             return send_file(
                 io.BytesIO(user['avatar']),
@@ -667,6 +668,7 @@ def create_app(test_config=None):
         search_term = data.get('search', '')
         if not influencer_name:
             return jsonify({'message': 'Influencer name is required'}), 400
+
         products_list = get_all_products_mongodb(search_term)
 
         return jsonify({'products': products_list}), 200
