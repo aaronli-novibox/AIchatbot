@@ -705,11 +705,26 @@ def create_app(test_config=None):
         search_term = data.get('search', '')    # TODO: 这个search_term是用来干什么的？
         role = data.get('role')
         influencer_name = data.get('influencer_name')
+
+        influencer = Influencer.objects(influencer_name=influencer_name).first()
+        if not influencer:
+            return jsonify({'message': 'Influencer not found'}), 404
+
+        for order in influencer.orders:
+            order_details = {
+                'Financial Status': order.order.displayFinancialStatus,
+                'paid_at': order.order.createdAt,
+                'fullfillment_status': order.order.displayFulfillmentStatus,
+                'closed_at': order.order.closedAt,
+                'Commission amount': order.order_commission_fee,
+            }
+
         promocode = None
         if role != 'admin':
             promocode = get_promocode(influencer_name=influencer_name)
 
         try:
+
             orderslist = getOrdersFromMongoDB(promocode=promocode)
             datalist = orderslist.to_dict(orient='records')
             return jsonify({'orders': datalist}), 200

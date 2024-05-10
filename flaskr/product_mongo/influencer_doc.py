@@ -90,34 +90,47 @@ class Influencer(Document):
 
         self.orders.append(order_info)
 
-        for li in order.lineitem:
+        if order.financial_status != "refunded":
 
-            # 增加class中的order_nums
-            self.order_nums += li.quantity
+            for li in order.lineitem:
 
-            # 找到对应的product
-            product_details = self.find_product(li.product.id)
+                # 增加class中的order_nums
+                self.order_nums += li.quantity
 
-            if product_details:
-                if product_details.product_contract_start <= order.created_at and product_details.product_contract_end >= order.created_at:
+                # 找到对应的product
+                product_details = self.find_product(li.product.id)
 
-                    order_info.order_commission_fee += (
-                        float(product_details.commission.replace('%', '')) /
-                        100) * li.lineitem_quantity * li.lineitem_price
+                if product_details:
+                    if product_details.product_contract_start <= order.created_at and product_details.product_contract_end >= order.created_at:
+
+                        order_info.order_commission_fee += (
+                            float(product_details.commission.replace('%', '')) /
+                            100) * li.lineitem_quantity * li.lineitem_price
+
+                        # 增加class中的total_commission
+                        self.total_commission += order_info.order_commission_fee
+
+                        # 如果对应的commission_fee为0，那么就计算commission_fee？ 这里实在没看懂
+                        if product_details.commission_fee == 0:
+                            product_details.commission_fee = (float(
+                                product_details.commission.replace(
+                                    '%', '')) / 100) * li.lineitem_price
+
+                        product_details.save()
+
+                else:
+                    order_info.order_commission_fee += 0.08 * li.lineitem_quantity * li.lineitem_price
 
                     # 增加class中的total_commission
                     self.total_commission += order_info.order_commission_fee
 
                     # 如果对应的commission_fee为0，那么就计算commission_fee？ 这里实在没看懂
                     if product_details.commission_fee == 0:
-                        product_details.commission_fee = (
-                            float(product_details.commission.replace('%', '')) /
-                            100) * li.lineitem_price
+                        product_details.commission_fee = 0.08 * li.lineitem_price
 
                     product_details.save()
 
         order_info.save()
-
         self.save()
 
     def find_product(self, product_id):

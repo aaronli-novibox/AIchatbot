@@ -22,8 +22,19 @@ def webhookService(headers, json_data):
                                              operation_name="GetOneOrder")
 
         dataInfo = json.loads(dataInfo)
-        # pprint(dataInfo)
         item = flatten_data(dataInfo)
+
+        # 获取customer之前的订单，所使用的influncer的promo_code
+        customer = Customer.objects(shopify_id=item['customer']['id']).first()
+
+        promo_code = item['discountCode']
+
+        if not promo_code:
+
+            customer = Customer.objects(
+                shopify_id=item['customer']['id']).first()
+            promo_code = customer.lastOrder.discountCode
+
         item = recursive_replace_keys(item, key_changes)
 
         order, _ = Order.recursive_get_or_create(item)
@@ -77,14 +88,15 @@ def webhookService(headers, json_data):
         order.save()
 
         # 加上influencer的逻辑
-        influencer = Influencer.objects(promo_code=order.discountCode).first()
-
-        print(order.discountCode)
+        influencer = Influencer.objects(promo_code=promo_code).first()
 
         if influencer:
             if order not in influencer.orders:
                 influencer.append_order(order)
                 influencer.save()
+            else:
+                # 更新订单
+                pass
 
         return order
 
