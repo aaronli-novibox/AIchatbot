@@ -219,7 +219,7 @@ def create_app(test_config=None):
             "interest": interest,
             "is_email_confirmed": confirm
         }
-        
+
         # Save user data to MongoDB
         Influencer(**user_data).save()
 
@@ -669,7 +669,14 @@ def create_app(test_config=None):
         if not influencer_name:
             return jsonify({'message': 'Influencer name is required'}), 400
 
-        products_list = get_all_products_mongodb(search_term)
+        influencer = Influencer.objects(influencer_name=influencer_name).first()
+        if not influencer:
+            return jsonify({'message': 'Influencer not found'}), 404
+
+        products_list = get_all_products_mongodb(
+            influencer,
+            search_term,
+        )
 
         return jsonify({'products': products_list}), 200
 
