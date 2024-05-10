@@ -159,6 +159,8 @@ class Product(Document):
     # 自增字段
     descriptionVector = ListField(FloatField(), default=lambda: [0.0] * 1024)
 
+    handle = StringField(help_text="A human-friendly unique string for the product.")
+
     meta = {
         'indexes': [
             'vendor',    # Example of setting an index on vendor field
@@ -244,7 +246,7 @@ class Order(Document):
     cartDiscountAmountSet = EmbeddedDocumentField(MoneyBag, help_text="The total order-level discount amount, before returns, in shop and presentment currencies.")
     # channelInformation = EmbeddedDocumentField(ChannelInformation, help_text="Details about the channel that created the order.")
     clientIp = StringField(help_text="The IP address of the API client that created the order.")
-    closed = BooleanField(required=True, help_text="Whether the order is closed.")
+    closed = BooleanField(help_text="Whether the order is closed.")
     closedAt = DateTimeField(help_text="The date and time when the order was closed. Returns null if the order isn't closed.")
     confirmationNumber = StringField(help_text="A randomly generated alpha-numeric identifier for the order that may be shown to the customer instead of the sequential order name.")
     confirmed = BooleanField(required=True, help_text="Whether inventory has been reserved for the order.")
@@ -253,20 +255,20 @@ class Order(Document):
     currentCartDiscountAmountSet = EmbeddedDocumentField(MoneyBag, required=True, help_text="The current order-level discount amount after all order updates, in shop and presentment currencies.")
     currentSubtotalLineItemsQuantity = IntField(required=True, help_text="The sum of the quantities for all line items that contribute to the order's current subtotal price.")
     currentSubtotalPriceSet = EmbeddedDocumentField(MoneyBag, required=True, help_text="The sum of the prices for all line items after discounts and returns, in shop and presentment currencies. If taxesIncluded is true, then the subtotal also includes tax.")
-    currentTaxLines = ListField(EmbeddedDocumentField(TaxLine), required=True, help_text="A list of all tax lines applied to line items on the order, after returns. Tax line prices represent the total price for all tax lines with the same rate and title.")
+    currentTaxLines = ListField(EmbeddedDocumentField(TaxLine), help_text="A list of all tax lines applied to line items on the order, after returns. Tax line prices represent the total price for all tax lines with the same rate and title.")
     currentTotalAdditionalFeesSet = EmbeddedDocumentField(MoneyBag, help_text="The total amount of additional fees after returns, in shop and presentment currencies. Returns null if there are no additional fees for the order.")
     currentTotalDiscountsSet = EmbeddedDocumentField(MoneyBag, required=True, help_text="The total amount discounted on the order after returns, in shop and presentment currencies. This includes both order and line level discounts.")
     currentTotalDutiesSet = EmbeddedDocumentField(MoneyBag, help_text="The total amount of duties after returns, in shop and presentment currencies. Returns null if duties aren't applicable.")
     currentTotalPriceSet = EmbeddedDocumentField(MoneyBag, required=True, help_text="The total price of the order, after returns, in shop and presentment currencies. This includes taxes and discounts.")
     currentTotalTaxSet = EmbeddedDocumentField(MoneyBag, required=True, help_text="The sum of the prices of all tax lines applied to line items on the order, after returns, in shop and presentment currencies.")
     currentTotalWeight = IntField(required=True, help_text="The total weight of the order after returns, in grams.")
-    customAttributes = ListField(EmbeddedDocumentField(Attribute), required=True, help_text="A list of the custom attributes added to the order.")
+    customAttributes = ListField(EmbeddedDocumentField(Attribute), help_text="A list of the custom attributes added to the order.")
 
     customerAcceptsMarketing = BooleanField(required=True, help_text="Whether the customer agreed to receive marketing materials.")
     # customerJourneySummary = EmbeddedDocumentField(CustomerJourneySummary, help_text="The customer's visits and interactions with the online store before placing the order.")
     customerLocale = StringField(help_text="A two-letter or three-letter language code, optionally followed by a region modifier.")
     discountCode = StringField(help_text="The discount code used for the order.")
-    discountCodes = ListField(StringField(), required=True, help_text="The discount codes used for the order.")
+    discountCodes = ListField(StringField(), help_text="The discount codes used for the order.")
     displayAddress = ReferenceField(MailingAddress, help_text="The primary address of the customer. Returns null if neither the shipping address nor the billing address was provided.")
     displayFinancialStatus = EnumField(OrderDisplayFinancialStatus, help_text="The financial status of the order that can be shown to the merchant. This field doesn't capture all the details of an order's financial state. It should only be used for display summary purposes.")
     displayFulfillmentStatus = EnumField(OrderDisplayFulfillmentStatus, required=True, help_text="The fulfillment status for the order that can be shown to the merchant. This field does not capture all the details of an order's fulfillment state. It should only be used for display summary purposes. For a more granular view of the fulfillment status, refer to the FulfillmentOrder object.")
@@ -281,7 +283,7 @@ class Order(Document):
     shopify_id = StringField(required=True, unique = True,help_text="A globally-unique ID.")
     legacyResourceId = IntField(required=True, help_text="The ID of the corresponding resource in the REST Admin API.")
     merchantEditable = BooleanField(required=True, help_text="Whether the order can be edited by the merchant. For example, canceled orders can’t be edited.")
-    merchantEditableErrors = ListField(StringField(), required=True, help_text="A list of reasons why the order can't be edited. For example, 'Canceled orders can't be edited'.")
+    merchantEditableErrors = ListField(StringField(), help_text="A list of reasons why the order can't be edited. For example, 'Canceled orders can't be edited'.")
 
     # metafield = EmbeddedDocumentField(Metafield, help_text="Returns a metafield by namespace and key that belongs to the resource.")
     name = StringField(required=True, help_text="The unique identifier for the order that appears on the order page in the Shopify admin and the Order status page.")
@@ -291,7 +293,7 @@ class Order(Document):
     originalTotalDutiesSet = EmbeddedDocumentField(MoneyBag, help_text="The total amount of duties before returns, in shop and presentment currencies. Returns null if duties aren't applicable.")
     originalTotalPriceSet = EmbeddedDocumentField(MoneyBag, required=True, help_text="The total price of the order at the time of order creation, in shop and presentment currencies.")
     paymentCollectionDetails = EmbeddedDocumentField(OrderPaymentCollectionDetails, required=True, help_text="The payment collection details for the order.")
-    paymentGatewayNames = ListField(StringField(), required=True, help_text="A list of the names of all payment gateways used for the order. For example, 'Shopify Payments' and 'Cash on Delivery (COD)'.")
+    paymentGatewayNames = ListField(StringField(), help_text="A list of the names of all payment gateways used for the order. For example, 'Shopify Payments' and 'Cash on Delivery (COD)'.")
     paymentTerms = ReferenceField(PaymentTerms, help_text="The payment terms associated with the order.")
     phone = StringField(help_text="The phone number associated with the customer.")
     poNumber = StringField(help_text="The PO number associated with the order.")
@@ -315,9 +317,9 @@ class Order(Document):
     subtotalLineItemsQuantity = IntField(required=True, help_text="The sum of the quantities for all line items that contribute to the order's subtotal price.")
     subtotalPriceSet = EmbeddedDocumentField(MoneyBag, help_text="The sum of the prices for all line items after discounts and before returns, in shop and presentment currencies. If taxesIncluded is true, then the subtotal also includes tax.")
     # suggestedRefund = Field(SuggestedRefund, help_text="A suggested refund for the order.")
-    tags = ListField(StringField(), required=True, help_text="A comma separated list of tags associated with the order. Updating tags overwrites any existing tags that were previously added to the order. To add new tags without overwriting existing tags, use the tagsAdd mutation.")
+    tags = ListField(StringField(), help_text="A comma separated list of tags associated with the order. Updating tags overwrites any existing tags that were previously added to the order. To add new tags without overwriting existing tags, use the tagsAdd mutation.")
     taxExempt = BooleanField(required=True, help_text="Whether taxes are exempt on the order.")
-    taxLines = ListField(EmbeddedDocumentField(TaxLine), required=True, help_text="A list of all tax lines applied to line items on the order, before returns. Tax line prices represent the total price for all tax lines with the same rate and title.")
+    taxLines = ListField(EmbeddedDocumentField(TaxLine), help_text="A list of all tax lines applied to line items on the order, before returns. Tax line prices represent the total price for all tax lines with the same rate and title.")
     taxesIncluded = BooleanField(required=True, help_text="Whether taxes are included in the subtotal price of the order.")
     test = BooleanField(required=True, help_text="Whether the order is a test. Test orders are made using the Shopify Bogus Gateway or a payment provider with test mode enabled. A test order can't be converted into a real order and vice versa.")
     totalCapturableSet = EmbeddedDocumentField(MoneyBag, required=True, help_text="The authorized amount that's uncaptured or undercaptured, in shop and presentment currencies. This amount isn't adjusted for returns.")
@@ -331,9 +333,11 @@ class Order(Document):
     totalTaxSet = EmbeddedDocumentField(MoneyBag, help_text="The total tax amount before returns, in shop and presentment currencies.")
     totalTipReceivedSet = EmbeddedDocumentField(MoneyBag, required=True, help_text="The sum of all tip amounts for the order, in shop and presentment currencies.")
     totalWeight = IntField(help_text="The total weight of the order before returns, in grams.")
-    transactions = ListField(ReferenceField(OrderTransaction), required=True, help_text="A list of transactions associated with the order.")
+    transactions = ListField(ReferenceField(OrderTransaction), help_text="A list of transactions associated with the order.")
     unpaid = BooleanField(required=True, help_text="Whether no payments have been made for the order.")
     updatedAt = DateTimeField(required=True, help_text="The date and time when the order was modified last.")
+
+    lineitem = ListField(ReferenceField('LineItem'), required=True, help_text="A list of line items in the order.")
 
 
 # class Order(Document):

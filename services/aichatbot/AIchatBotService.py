@@ -219,6 +219,18 @@ def recommandGiftByList(req):
     occasion = req.get("occasion")
     budget = req.get("budget")
     age = req.get("age")
+
+    if gender is None or occasion is None or budget is None or age is None:
+        return {
+            'code':
+                '0001',
+            'data': {
+                'result': None,
+            },
+            'msg':
+                'The user\'s input is incomplete. Please provide the necessary information and try again. 用户输入不完整，请提供必要信息后重试'
+        }, 200
+
     relationship = req.get("relationship", None)    # 如果不存在，则返回 None
     interests = req.get("interests", None)    # 如果不存在，则返回 None
     style = req.get("style", None)    # 如果不存在，则返回 None
@@ -278,8 +290,11 @@ def recommandGiftByList(req):
     query_vector = emb_model.encode(project_string_).astype(np.float64).tolist()
 
     # 定义价格范围
-    if budget == "Under $50":
+    if budget == "<$20":
         price_min = 0
+        price_max = 20
+    elif budget == "$20-$50":
+        price_min = 20
         price_max = 50
     elif budget == "$50-$100":
         price_min = 50
@@ -351,6 +366,11 @@ def recommandGiftByList(req):
                 "featuredImage": 1,
                 "minPrice": "$priceRangeV2.minVariantPrice.amount",
                 "maxPrice": "$priceRangeV2.maxVariantPrice.amount",
+                "currencyCode": "$priceRangeV2.minVariantPrice.currencyCode",
+                "handle": 1,
+                "price": {
+                    "$arrayElemAt": ["$variantDetails.price", 0]
+                },
                 "variants": {
                     "$map": {
                         "input": "$variantDetails",
@@ -465,6 +485,11 @@ def recommandGiftByTags(req):
                 "featuredImage": 1,
                 "minPrice": "$priceRangeV2.minVariantPrice.amount",
                 "maxPrice": "$priceRangeV2.maxVariantPrice.amount",
+                "currencyCode": "$priceRangeV2.minVariantPrice.currencyCode",
+                "handle": 1,
+                "price": {
+                    "$arrayElemAt": ["$variantDetails.price", 0]
+                },
                 "variants": {
                     "$map": {
                         "input": "$variantDetails",

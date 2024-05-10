@@ -1,0 +1,24 @@
+    fragment MediaImageInfo on MediaImage{
+        image{
+            url
+        }
+    }
+        
+
+    query GetManyProducts($media_image_ids: [ID!]!){
+        nodes(ids: $media_image_ids) {
+            ... on MediaImage {
+                ...MediaImageInfo
+            }
+        }
+    }
+    
+
+    query GetOneMediaImage($media_image_id: ID!){
+        node(id: $media_image_id){
+            ... on MediaImage {
+            ...MediaImageInfo
+            }
+        }
+    }
+

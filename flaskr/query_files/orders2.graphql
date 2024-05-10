@@ -1,0 +1,308 @@
+
+        cancelReason
+        cancelledAt
+        confirmationNumber
+        createdAt
+        currencyCode
+        customer
+        customerLocale
+        edited
+        email
+        financialStatus
+        id
+        locationName
+        name
+        note
+        number
+        paymentInformation
+        phone
+        poNumber
+        processedAt
+        purchasingEntity
+        refunds
+        requiresShipping
+        shippingAddress
+        shippingDiscountAllocations {
+            allocatedAmount {
+                amount
+                currencyCode
+            }
+            discountApplication {
+                allocationMethod
+                targetSelection
+                targetType
+                value
+            }
+        }
+    
+        shippingLine {
+            handle
+            originalPrice {
+                amount
+                currencyCode
+            }
+            title
+        }
+
+        statusPageUrl
+        subtotal {
+            amount
+            currencyCode
+        }
+        totalDuties {
+            amount
+            currencyCode
+        }
+        totalPrice {
+            amount
+            currencyCode
+        }
+        totalRefunded {
+            amount
+            currencyCode
+        }
+        totalShipping {
+            amount
+            currencyCode
+        }
+        totalTax {
+            amount
+            currencyCode
+        }
+        totalTip {
+            amount
+            currencyCode
+        }
+    
+        transactions {
+            createdAt
+            giftCardDetails {
+                balance {
+                    amount
+                    currencyCode
+                }
+                last4
+            }
+            id
+            kind
+
+            paymentDetails {
+                CardPaymentDetails {
+                    cardBrand
+                    last4
+                }
+            }
+
+            paymentIcon {
+                        altText
+                        height
+                        id
+                        url
+                        width
+                        originalSrc
+                        src
+            }
+
+            processedAt
+            status
+            transactionAmount {
+                presentmentMoney {
+                    amount
+                    currencyCode
+                }
+                shopMoney {
+                    amount
+                    currencyCode
+                }
+            }
+            transactionParentId
+            type
+            typeDetails {
+                message
+                name
+            }
+        }
+
+
+        additionalFees {
+            id
+            name
+            price {
+                amount
+                currencyCode
+            }
+            presentmentMoney {
+                amount
+                currencyCode
+            }
+            shopMoney {
+                amount
+                currencyCode
+            }
+            taxLines {
+                channelLiable
+                priceSet {
+                    amount
+                    currencyCode
+                }
+                rate
+                ratePercentage
+                title
+            }
+        }
+
+        app {
+            icon
+            id
+            name
+        }
+
+        billingAddress {
+            address1
+            address2
+            city
+            company
+            coordinatesValidated
+            country
+            countryCodeV2
+            firstName
+            formattedArea
+            id
+            lastName
+            name
+            phone
+            province
+            provinceCode
+            zip
+            countryCodeV2
+        }
+
+        billingAddressMatchesShippingAddress
+        canMarkAsPaid
+        canNotifyCustomer
+        cancelReason
+        cancellation{
+            staffNote
+        }
+        cancelledAt
+        capturable
+        cartDiscountAmountSet {
+            presentmentMoney {
+            amount
+            currencyCode
+            }
+            shopMoney {
+            amount
+            currencyCode
+            }
+        }
+
+        clientIp
+        closed
+        closedAt
+        confirmationNumber
+        confirmed
+        createdAt
+        currencyCode
+
+        currentCartDiscountAmountSet {
+            presentmentMoney {
+                amount
+                currencyCode
+            }
+            shopMoney {
+                amount
+                currencyCode
+            }
+        }
+
+        currentSubtotalLineItemsQuantity
+        currentSubtotalPriceSet {
+            presentmentMoney {
+                amount
+                currencyCode
+            }
+            shopMoney {
+                amount
+                currencyCode
+            }
+        }
+
+        currentTaxLines {
+            channelLiable
+            priceSet {
+                presentmentMoney {
+                    amount
+                    currencyCode
+                }
+                shopMoney {
+                    amount
+                    currencyCode
+                }
+            }
+            rate
+            ratePercentage
+            title
+        }
+
+        currentTotalAdditionalFeesSet {
+            presentmentMoney {
+                amount
+                currencyCode
+            }
+            shopMoney {
+                amount
+                currencyCode
+            }
+        }
+
+        currentTotalDiscountsSet {
+            presentmentMoney {
+                amount
+                currencyCode
+            }
+            shopMoney {
+                amount
+                currencyCode
+            }
+        }
+
+        currentTotalDutiesSet {
+            presentmentMoney {
+                amount
+                currencyCode
+            }
+            shopMoney {
+                amount
+                currencyCode
+            }
+        }
+
+        currentTotalPriceSet {
+            presentmentMoney {
+                amount
+                currencyCode
+            }
+            shopMoney {
+                amount
+                currencyCode
+            }
+        }
+
+        currentTotalTaxSet {
+            presentmentMoney {
+                amount
+                currencyCode
+            }
+            shopMoney {
+                amount
+                currencyCode
+            }
+        }
+
+        currentTotalWeight
+
+        customAttributes {
+            key
+            value
+        }

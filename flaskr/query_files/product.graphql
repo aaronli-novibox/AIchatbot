@@ -1,0 +1,161 @@
+    fragment ProductInfo on Product{
+        id
+        title
+        description
+        productType
+        vendor
+        status
+        tags
+        createdAt
+        updatedAt
+        #options(first:250){
+        #    name
+        #    position
+        #    values
+        #}
+        collections(first:250){
+            nodes{
+                id
+                availablePublicationCount
+                description
+                descriptionHtml
+                handle
+                #hasProduct
+                legacyResourceId
+                productsCount
+                publicationCount
+                publishedOnCurrentPublication
+                #publishedOnPublication
+                #seo
+                sortOrder
+                templateSuffix
+                title
+                #translations
+                updatedAt
+            }
+        }
+        publications(first: 250){
+            nodes {
+                channel {
+                    id
+                    name
+                    supportsFuturePublishing
+                    handle
+                    navigationItems{
+                        id
+                        title
+                        url
+                    }
+                    overviewPath
+                }
+                isPublished
+                publishDate
+            }
+        }
+        variants(first: 250) {
+            nodes {
+                availableForSale
+                barcode
+                compareAtPrice
+                createdAt
+                defaultCursor
+                displayName
+                id
+                image{
+                    url
+                }
+                inventoryPolicy
+                inventoryQuantity
+                legacyResourceId
+                position
+                price
+                product{
+                    id
+                }
+                requiresComponents
+                sellableOnlineQuantity
+                sellingPlanGroupCount
+                sku
+                taxCode
+                taxable
+                title
+                updatedAt
+                weight
+                weightUnit
+                inventoryItem {
+                    countryCodeOfOrigin
+                    createdAt
+                    duplicateSkuCount
+                    harmonizedSystemCode
+                    id
+                    inventoryHistoryUrl
+                    legacyResourceId
+                    locationsCount
+                    provinceCodeOfOrigin
+                    requiresShipping
+                    sku
+                    tracked
+                    updatedAt
+                    variant{
+                        id
+                    }
+                    inventoryLevels (first: 250) {
+                        nodes {
+                            id
+                            canDeactivate
+                            createdAt
+                            deactivationAlert
+                            updatedAt
+                            # The quantities field takes an array of inventory states, which include the following: `incoming`, `on_hand`, `available`, `committed`, `reserved`, `damaged`, `safety_stock`, and `quality_control`.
+                            quantities(names: ["available", "on_hand", "reserved", "committed"]) {
+                                id
+                                name
+                                quantity
+                                updatedAt
+                            }
+                            location{
+                            id
+                            name
+                            }
+                            item{
+                                id
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        featuredImage{
+            url
+        }
+        onlineStoreUrl
+        priceRangeV2{
+            maxVariantPrice{
+                amount
+                currencyCode
+            }
+            minVariantPrice{
+                amount
+                currencyCode
+            }
+        }
+    }
+        
+
+    query GetManyProducts($product_ids: [ID!]!){
+        nodes(ids: $product_ids) {
+            ... on Product{
+                ...ProductInfo
+            }
+        }
+    }
+    
+
+    query GetOneProduct($product_id: ID!){
+        node(id: $product_id){
+            ... on Product {
+            ...ProductInfo
+            }
+        }
+    }
+

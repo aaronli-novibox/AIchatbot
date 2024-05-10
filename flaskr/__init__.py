@@ -3,6 +3,7 @@ from flask import Flask, abort, send_file
 from services.mongo import *
 from services.aichatbot.AIchatBotService import *
 from services.mongo.MongoService import *
+from services.webhook.webhookService import *
 from bson.objectid import ObjectId
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -27,6 +28,8 @@ from mongoengine import connect, Q
 from .product_mongo.influencer_doc import *
 from .product_mongo.mongo_doc import *
 import re
+import hmac
+import hashlib
 
 
 def load_model() -> FlagModel:
@@ -156,6 +159,15 @@ def create_app(test_config=None):
         confirm = False
         email = data['email']
 
+        collaborations = json.loads(data.get('collaborations', '[]'))
+        niches = json.loads(data.get('niches', '[]'))
+        interests = json.loads(data.get('interests', '[]'))
+        audiences = json.loads(data.get('audience', '[]'))
+
+        collaboration = [Collaboration(**data) for data in collaborations]
+        niche = [Niche(**data) for data in niches]
+        interest = [Interest(**data) for data in interests]
+
         if file:
             file_data = file.read()
             binary_data = binary.Binary(file_data)
@@ -201,10 +213,10 @@ def create_app(test_config=None):
             "shipping_address": data.get('shippingAddress'),
             "phone": data.get('phone'),
             "bio": data.get('bio'),
-            "collaboration": data.get('collaborations', default=[]),
-            "audience": data.get('audience', default=[]),
-            "niche": data.get('niches', default=[]),
-            "interest": data.get('interests', default=[]),
+            "collaboration": collaboration,
+            "audience": audiences,
+            "niche": niche,
+            "interest": interest,
             "is_email_confirmed": confirm
         }
         
@@ -215,8 +227,9 @@ def create_app(test_config=None):
 
     @app.route('/get_profile_photo/<email>', methods=['GET'])
     def get_profile_photo(email):
-        influencers_collection = getNewInfluencerListFromMongoDB()
-        user = influencers_collection.find_one({"influencer_email": email})
+
+        user = Influencer.objects(influencer_email=email).first()
+
         if user and user['avatar']:
             return send_file(
                 io.BytesIO(user['avatar']),
@@ -331,7 +344,7 @@ def create_app(test_config=None):
 
         # Convert MongoDB documents to a JSON serializable format
         user_data = {}
-        for key, value in user.items():
+        for key, value in user.to_mongo().items():
             if isinstance(value, ObjectId):
                 user_data[key] = str(value)
             elif isinstance(value, bytes):
@@ -423,15 +436,15 @@ def create_app(test_config=None):
             return jsonify({'message': 'Influencer name is required'}), 400
 
         role = data.get('role')
-        products_list = []
         influencer_list = []
-        # all_influencers = countInfluencers()
         all_influencers = Influencer.objects.count()
 
         last_month_sales = 0
         last_month_orders = 0
 
         if role == 'admin':
+
+            # 获取什么信息？
             products_list = getProductListFromMongoDB()
 
         influencer_data = Influencer.objects(
@@ -440,14 +453,45 @@ def create_app(test_config=None):
         if influencer_data is not None:
             # products_list = influencer_data.get('product', [])
             # TODO: get the necessary data from the influencer document
-            products_list = influencer_data.product
+            product_details = []
+            for influencer_product in influencer_data.product:
+                product = influencer_product.product
+                if product:
+                    # 此时product是一个Product对象的引用，可以直接访问其字段
+                    product_info = {
+                        'title':
+                            product.title,
+                        "commission_rate":
+                            influencer_product.commission,
+                        'status':
+                            True if product.product_contract_end
+                            > datetime.now() else False,
+                        "start_time":
+                            influencer_product.product_contract_start.strftime(
+                                "%Y-%m-%d")
+                            if influencer_product.product_contract_start else
+                            "N/A",
+                        "end_time":
+                            influencer_product.product_contract_end.strftime(
+                                "%Y-%m-%d") if
+                            influencer_product.product_contract_end else "N/A",
+                        "video_exposure":
+                            influencer_product.video_exposure,
+                        'product_shopify_id':
+                            product.product.shopify_id,
+                        'featuredImage':
+                            product.featuredImage,
+                        'onlineStoreUrl':
+                            product.onlineStoreUrl,
+                    }
+                    product_details.append(product_info)
 
         return jsonify({
             'data': {
                 'all_influencers': all_influencers,
                 'last_month_sales': last_month_sales,
                 'last_month_orders': last_month_orders,
-                'products': products_list
+                'products': product_details
             }
         }), 200
 
@@ -460,56 +504,100 @@ def create_app(test_config=None):
         if influencer_name is None:
             return jsonify({'message': 'Influencer name is required'}), 400
 
-        role = data.get('role')
-        search = data.get('search')
+        role = data.get('role')    # 这是用来干什么的？
+        search = data.get('search')    # 这是用来干什么的？
 
-        products_list = []
         influencer_data = Influencer.objects(
             influencer_name=influencer_name).first()
 
-        if influencer_data is not None:
-            products_list = influencer_data.get('product', [])
-            promocode = influencer_data.promo_code
-
         order_nums = 0
         Total_Commissions = 0
-        last_month_orders = 0
+        last_month_orders = 0    # 上个月的订单数，没有更新
 
-        order_list = getOrderCollection().find({'promo_code': promocode},
-                                               {'_id': 0})
+        if influencer_data is not None:
+            products_list = influencer_data.product
+            promocode = influencer_data.promo_code
 
-        order_list = list(order_list)
+            product_details = []
+            for influencer_product in influencer_data.product:
+                product = influencer_product.product
+                if product:
+                    # 此时product是一个Product对象的引用，可以直接访问其字段
+                    product_info = {
+                        'title':
+                            product.title,
+                        "commission_rate":
+                            influencer_product.commission,
+                        'status':
+                            True if product.product_contract_end
+                            > datetime.now() else False,
+                        "start_time":
+                            influencer_product.product_contract_start.strftime(
+                                "%Y-%m-%d")
+                            if influencer_product.product_contract_start else
+                            "N/A",
+                        "end_time":
+                            influencer_product.product_contract_end.strftime(
+                                "%Y-%m-%d") if
+                            influencer_product.product_contract_end else "N/A",
+                        "video_exposure":
+                            influencer_product.video_exposure,
+                        'product_shopify_id':
+                            product.product.shopify_id,
+                        'featuredImage':
+                            product.featuredImage,
+                        'onlineStoreUrl':
+                            product.onlineStoreUrl,
+                    }
+                    product_details.append(product_info)
 
+            # 返回order_nums, Total_Commissions, last_month_orders
+            order_nums = influencer_data.order_nums
+            Total_Commissions = influencer_data.total_commission
+
+            # last_month_orders 逻辑需要重新确认
+
+            # 打印或以其他方式处理product_details
+            print(product_details)
+        else:
+            return jsonify({'error': 'Influencer not found'}), 404
+
+        # order_list = Order.objects(discountCode=promocode)
+
+        # order_list = list(order_list)
+
+        # TODO: 为什么需要product——commission fee这个字段？用来干什么的？
         # 遍历所有相关订单
-        for doc in order_list:
-            if doc['financial_status'] == "refunded":
-                pass
-            # 订单创建时间
-            create_time = doc['lineitem'][0]['created_at']
-            # 解析时间戳字符串,并只选取年月日
-            create_time = datetime.strptime(
-                create_time, '%Y-%m-%d %H:%M:%S %z').strftime('%Y-%m-%d')
-            create_time = datetime.strptime(create_time, '%Y-%m-%d')
-            for product in products_list:
-                if not product['commission_fee']:
-                    product['commission_fee'] = 0
-                # 看是否在带货列表中且购买日期在签约日期间
-                if product['product_sku'] == doc['lineitem'][0][
-                        'lineitem_sku'] and create_time > datetime.strptime(
-                            product['product_contract_start'],
-                            '%m-%d-%Y') and create_time > datetime.strptime(
-                                product['product_contract_end'], '%m-%d-%Y'):
-                    # 如果单个商品的分红值还是0， 就更新，不然就pass
-                    if product['commission_fee'] == 0:
-                        product['commission_fee'] = product['commission'] * doc[
-                            'lineitem'][0]['lineitem_price']
-                    else:
-                        pass
-                    # 增加带货数
-                    order_nums += doc['lineitem'][0]['lineitem_quantity']
-                    # 增加总分红数
-                    Total_Commissions += doc['lineitem'][0]['lineitem_quantity'] * product['commission'] * \
-                                         doc['lineitem'][0]['lineitem_price']
+        # for doc in order_list:
+        #     if doc['financial_status'] == "refunded":
+        #         pass
+        #     # 订单创建时间
+        #     create_time = doc['lineitem'][0]['created_at']
+        #     # 解析时间戳字符串,并只选取年月日
+        #     create_time = datetime.strptime(
+        #         create_time, '%Y-%m-%d %H:%M:%S %z').strftime('%Y-%m-%d')
+        #     create_time = datetime.strptime(create_time, '%Y-%m-%d')
+        #     for product in products_list:
+        #         if not product['commission_fee']:
+        #             product['commission_fee'] = 0
+        #         # 看是否在带货列表中且购买日期在签约日期间
+        #         # 这里的逻辑有问题，需要重新确认
+        #         if product['product_sku'] == doc['lineitem'][0][
+        #                 'lineitem_sku'] and create_time > datetime.strptime(
+        #                     product['product_contract_start'],
+        #                     '%m-%d-%Y') and create_time > datetime.strptime(
+        #                         product['product_contract_end'], '%m-%d-%Y'):
+        #             # 如果单个商品的分红值还是0， 就更新，不然就pass
+        #             if product['commission_fee'] == 0:
+        #                 product['commission_fee'] = product['commission'] * doc[
+        #                     'lineitem'][0]['lineitem_price']
+        #             else:
+        #                 pass
+        #             # 增加带货数
+        #             order_nums += doc['lineitem'][0]['lineitem_quantity']
+        #             # 增加总分红数
+        #             Total_Commissions += doc['lineitem'][0]['lineitem_quantity'] * product['commission'] * \
+        #                                  doc['lineitem'][0]['lineitem_price']
 
         return jsonify({
             'cards': {
@@ -517,7 +605,7 @@ def create_app(test_config=None):
                 'last_month_sales': Total_Commissions,
                 'last_month_orders': last_month_orders
             },
-            'products': products_list
+            'products': product_details
         }), 200
 
     # Forgot password endpoint
@@ -580,6 +668,7 @@ def create_app(test_config=None):
         search_term = data.get('search', '')
         if not influencer_name:
             return jsonify({'message': 'Influencer name is required'}), 400
+
         products_list = get_all_products_mongodb(search_term)
 
         return jsonify({'products': products_list}), 200
@@ -602,11 +691,11 @@ def create_app(test_config=None):
 
         return jsonify({'products': products_list}), 200
 
-    # TODO: 还没来得及看
+    # TODO: 还没来得及看，这个函数是用来干什么的？
     @app.route('/orderlist', methods=['POST'])
     def get_orderlist():
         data = request.get_json()
-        search_term = data.get('search', '')
+        search_term = data.get('search', '')    # TODO: 这个search_term是用来干什么的？
         role = data.get('role')
         influencer_name = data.get('influencer_name')
         promocode = None
@@ -638,16 +727,6 @@ def create_app(test_config=None):
     #         'message': 'success'
     #     }), 200
 
-    # @app.route('/orders')
-    # def getOrdersInfoFromMongoDB():
-    #     orders_list = getOrderListFromMongoDB()
-    #     return jsonify({
-    #         'data': {
-    #             'orders': orders_list
-    #         },
-    #         'message': 'success'
-    #     }), 200
-
     # @app.route('/customers')
     # def getCustomersInfoFromMongoDB():
     #     customers_list = getCustomerListFromMongoDB()
@@ -671,17 +750,16 @@ def create_app(test_config=None):
             'message': 'success'
         })
 
+    # TODO: 需要什么字段确定
     @app.route('/influencerlist', methods=['POST'])
     def get_influencerlist():
         data = request.get_json()
         search_term = data.get('search', '')
         role = data.get('role', '')
 
-        influencers = search_influencerList(search=search_term)
-        influencers_list = list(influencers)
-
         if role == 'admin':
-            return jsonify({'influencers': influencers_list}), 200
+            influencers = search_influencerList(search=search_term)
+            return jsonify({'influencers': influencers}), 200
         else:
             return jsonify({'msg': 'Not admin account'}), 200
 
@@ -724,7 +802,11 @@ def create_app(test_config=None):
             res, status_code = recommandGiftByUserInput(data)
             return jsonify(res), status_code
         except Exception as error:
-            return jsonify({'message': error}), 400
+            return jsonify({
+                'code': "0001",
+                "data": None,
+                'message': error
+            }), 400
 
     @app.route('/gift-swip', methods=['POST'])
     def recommand_by_tags():
@@ -734,6 +816,33 @@ def create_app(test_config=None):
             return jsonify(res), status_code
         except Exception as error:
             return jsonify({'message': error}), 400
+
+    #########################################################
+    #####################  webhook service ##################
+    #########################################################
+    def verify_webhook(data, hmac_header):
+        digest = hmac.new(app.config['SHOPIFY_API_PASSWORD'].encode('utf-8'),
+                          data,
+                          digestmod=hashlib.sha256).digest()
+        computed_hmac = base64.b64encode(digest)
+
+        return hmac.compare_digest(computed_hmac, hmac_header.encode('utf-8'))
+
+    @app.route('/webhook', methods=['POST'])
+    def handle_webhook():
+
+        data = request.get_data()
+        # TODO: 现在不知道私钥是什么
+        # verified = verify_webhook(data,
+        #                           request.headers.get('X-Shopify-Hmac-SHA256'))
+
+        # if not verified:
+        #     abort(401)
+
+        # Process webhook payload
+        webhookService(data)
+
+        return ('', 200)
 
     @app.route('/')
     def hello_novi_box():
