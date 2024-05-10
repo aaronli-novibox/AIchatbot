@@ -24,16 +24,14 @@ def webhookService(headers, json_data):
         dataInfo = json.loads(dataInfo)
         item = flatten_data(dataInfo)
 
-        # 获取customer之前的订单，所使用的influncer的promo_code
-        customer = Customer.objects(shopify_id=item['customer']['id']).first()
-
         promo_code = item['discountCode']
 
         if not promo_code:
 
             customer = Customer.objects(
                 shopify_id=item['customer']['id']).first()
-            promo_code = customer.lastOrder.discountCode
+            if customer and customer.lastOrder:
+                promo_code = customer.lastOrder.discountCode
 
         item = recursive_replace_keys(item, key_changes)
 
