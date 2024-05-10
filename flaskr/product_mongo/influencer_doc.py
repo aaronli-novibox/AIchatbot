@@ -37,6 +37,11 @@ class Interest(EmbeddedDocument):
 # class Audience(EmbeddedDocument):
 
 
+class OrderInfo(EmbeddedDocument):
+    order = ReferenceField(Order)
+    order_commission_fee = DecimalField(default=0)
+
+
 # novi box自建数据库，shopify没有的
 class Influencer(Document):
 
@@ -72,7 +77,7 @@ class Influencer(Document):
     avatar = BinaryField()    # BINARY DATA
     role = StringField()
 
-    orders = ListField(ReferenceField(Order), default=[])
+    orders = ListField(EmbeddedDocumentField(OrderInfo), default=[])
 
     order_nums = DecimalField(default=0)    # 订单中商品的数量
     total_commission = DecimalField(default=0)    # 总佣金
