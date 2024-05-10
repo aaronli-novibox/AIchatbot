@@ -1,0 +1,33 @@
+    fragment inventoryLevelInfo on InventoryLevel {
+        id
+        canDeactivate
+        createdAt
+        deactivationAlert
+        updatedAt
+        # The quantities field takes an array of inventory states, which include the following: `incoming`, `on_hand`, `available`, `committed`, `reserved`, `damaged`, `safety_stock`, and `quality_control`.
+        quantities(names: ["available", "on_hand", "reserved", "committed"]) {
+            id
+            name
+            quantity
+            updatedAt
+        }
+        location{
+        id
+        name
+        }
+        item{
+            id
+        }
+    }
+    
+    query GetOneInventoryLevel($inventoryLevel_id: ID!){
+        node(id: $inventoryLevel_id){
+            ...inventoryLevelInfo
+        }
+    }
+
+    query GetManyInventoryLevels($inventoryLevel_ids: [ID!]!){
+        nodes(ids: $inventoryLevel_ids){
+           ...inventoryLevelInfo
+        }
+    }

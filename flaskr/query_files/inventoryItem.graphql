@@ -1,0 +1,33 @@
+    fragment inventoryItemInfo on InventoryItem {
+        id
+        countryCodeOfOrigin
+        createdAt
+        duplicateSkuCount
+        harmonizedSystemCode
+        id
+        inventoryHistoryUrl
+        legacyResourceId
+        locationsCount
+        provinceCodeOfOrigin
+        requiresShipping
+        sku
+        tracked
+        updatedAt
+        inventoryLevels (first: 250) {
+            nodes {
+                id
+            }
+        }
+    }
+    
+    query GetOneInventoryItem($inventoryItem_id: ID!){
+        node(id: $inventoryItem_id){
+            ...inventoryItemInfo
+        }
+    }
+
+    query GetManyInventoryItems($inventoryItem_ids: [ID!]!){
+        nodes(ids: $inventoryItem_ids){
+           ...inventoryItemInfo
+        }
+    }

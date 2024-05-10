@@ -3,6 +3,7 @@ from flask import Flask, abort, send_file
 from services.mongo import *
 from services.aichatbot.AIchatBotService import *
 from services.mongo.MongoService import *
+from services.webhook.webhookService import *
 from bson.objectid import ObjectId
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -16,7 +17,6 @@ import io
 import jwt
 import base64
 
-from dotenv import load_dotenv
 from flask import g, request, redirect, jsonify, render_template
 from flaskr.shp import *
 from flaskr.oai import *
@@ -24,19 +24,25 @@ from flaskr.db import get_mongo_db, close_db
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 
+from mongoengine import connect, Q
+from .product_mongo.influencer_doc import *
+from .product_mongo.mongo_doc import *
+import re
+import hmac
+import hashlib
 
-# from config import config
 
-# from .openai import get_openai_client
-
-
-def config(app):
-    load_dotenv()
-    app.config["SHOPIFY_API_KEY"] = os.getenv("SHOPIFY_API_KEY")
-    app.config["SHOPIFY_API_PASSWORD"] = os.getenv("SHOPIFY_API_PASSWORD")
-    app.config["SHOPIFY_SHOP_NAME"] = os.getenv("SHOPIFY_SHOP_NAME")
-    app.config["MONGO_URI"] = os.getenv("MONGO_URI")
-    app.config["OPENAI_KEY"] = os.getenv("OPENAI_KEY")
+def load_model() -> FlagModel:
+    # Load the model
+    emb_model = FlagModel(
+        os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            'services/aichatbot/models/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09'
+        ),
+        query_instruction_for_retrieval=
+        "Generate a representation for this sentence for retrieving items:",
+        use_fp16=True)
+    return emb_model
 
 
 def create_app(test_config=None):
@@ -44,6 +50,7 @@ def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
     # Browser allows cross-domain requests from specific origins
     CORS(app)
+
     if test_config is None:
         # load the instance config, if it exists, when not testing
         print(
@@ -51,13 +58,14 @@ def create_app(test_config=None):
                          'config/config.py'))
         app.config.from_pyfile(os.path.join(
             os.path.dirname(os.path.dirname(__file__)), 'config/config.py'),
-            silent=True)
+                               silent=True)
     else:
         # load the test config if passed in
         app.config.from_mapping(test_config)
 
     # config(app)
     # configure for email send
+    # fmt: off
     app.config['SECRET_KEY'] = 'SECRETKEY'
     app.config['MAIL_SERVER'] = 'smtp.googlemail.com'
     app.config['MAIL_PORT'] = 587
@@ -67,29 +75,83 @@ def create_app(test_config=None):
     app.config['TESTING'] = False
     app.config['BASEURL'] = os.getenv('BASEURL')
     app.config['BDEMAIL'] = os.getenv('BDEMAIL')
+    app.config['MODEL'] = load_model()                             # Load the model for aichatbot service
+
     mail = Mail(app)
 
     # Serializer for creating the token
     s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
+    connect('dev', alias='default', host=app.config['MONGO_URI'])
+
+    # fmt: on
+
     # router
     @app.before_request
     def before_request():
 
-        # connect to mongodb
-        get_mongo_db()
+        # Connect to the openai service
         get_openai_service()
 
     @app.after_request
     def after_request(response):
-        close_db()
+
         close_openai_service()
-        import gc
-        gc.collect()  # 强制执行垃圾收集
-        print("garbage", gc.garbage)  # 打印无法回收的对象列表
 
         return response
 
+    def role_required(*roles):
+
+        def wrapper(fn):
+
+            @wraps(fn)
+            def decorated_view(*args, **kwargs):
+                if g.user is None or g.user.role not in roles:
+                    return jsonify({'error': 'Access denied'}), 403
+                return fn(*args, **kwargs)
+
+            return decorated_view
+
+        return wrapper
+
+    def validate_json(*required_args, one_of=None):
+
+        def decorator(fn):
+
+            @wraps(fn)
+            def wrapper(*args, **kwargs):
+                json_data = request.get_json()
+                if not json_data:
+                    abort(400, description="Invalid or missing JSON")
+                missing_required = [
+                    arg for arg in required_args if arg not in json_data
+                ]
+                if missing_required:
+                    abort(400,
+                          description=
+                          f"Missing {', '.join(missing_required)} in JSON data")
+
+                if one_of:
+                    if not any(key in json_data for key in one_of):
+                        abort(
+                            400,
+                            description=
+                            f"At least one of {', '.join(one_of)} is required")
+
+                return fn(*args, **kwargs)
+
+            return wrapper
+
+        return decorator
+
+    def safe_json_loads(data_str):
+        try:
+            return json.loads(data_str) if data_str and isinstance(
+                data_str, str) else data_str
+        except json.JSONDecodeError:
+            return None
+
+    # TODO: register role is just 'influencer'
     @app.route('/register', methods=['POST'])
     def register():
         data = request.form
@@ -97,16 +159,26 @@ def create_app(test_config=None):
         confirm = False
         email = data['email']
 
+        collaborations = json.loads(data.get('collaborations', '[]'))
+        niches = json.loads(data.get('niches', '[]'))
+        interests = json.loads(data.get('interests', '[]'))
+        audiences = json.loads(data.get('audience', '[]'))
+
+        collaboration = [Collaboration(**data) for data in collaborations]
+        niche = [Niche(**data) for data in niches]
+        interest = [Interest(**data) for data in interests]
+
         if file:
             file_data = file.read()
             binary_data = binary.Binary(file_data)
+
         else:
             binary_data = None
 
-        influencers_collection = getNewInfluencerListFromMongoDB();
         # Check if user already exists
         if email != app.config['BDEMAIL']:
-            if influencers_collection.find_one({'influencer_email': email}):
+            user = Influencer.objects(influencer_email=email).first()
+            if user:
                 return jsonify({'error': 'Email already in use'}), 409
 
             # send authentication email
@@ -121,7 +193,8 @@ def create_app(test_config=None):
             msg.body = f"New influencer {data['firstName']} has registered with this email"
             mail.send(msg)
 
-        hashed_password = generate_password_hash(data['password'], method='pbkdf2:sha256')
+        hashed_password = generate_password_hash(data['password'],
+                                                 method='pbkdf2:sha256')
 
         # Prepare user data
         user_data = {
@@ -129,9 +202,6 @@ def create_app(test_config=None):
             "influencer_email": data.get('email'),
             "promo_code": data.get('promoCode'),
             "avatar": binary_data,
-            "contract_start": None,
-            "contract_end": None,
-            "product": [],
             "first_name": data.get('firstName'),
             "last_name": data.get('lastName'),
             "middle_name": data.get('middleName'),
@@ -143,81 +213,44 @@ def create_app(test_config=None):
             "shipping_address": data.get('shippingAddress'),
             "phone": data.get('phone'),
             "bio": data.get('bio'),
-            "collaboration": data.get('collaborations'),
-            "audience": data.get('audience'),
-            "niche": data.get('niches'),
-            "interest": data.get('interests'),
+            "collaboration": collaboration,
+            "audience": audiences,
+            "niche": niche,
+            "interest": interest,
             "is_email_confirmed": confirm
         }
 
-        # Insert into MongoDB
-        influencers_collection.insert_one(user_data)
+        # Save user data to MongoDB
+        Influencer(**user_data).save()
+
         return jsonify({'message': 'Registration successful'}), 201
-    
+
     @app.route('/get_profile_photo/<email>', methods=['GET'])
     def get_profile_photo(email):
-        influencers_collection = getNewInfluencerListFromMongoDB();
+        influencers_collection = getNewInfluencerListFromMongoDB()
         user = influencers_collection.find_one({"influencer_email": email})
         if user and user['avatar']:
             return send_file(
                 io.BytesIO(user['avatar']),
-                mimetype='image/jpeg'  # This assumes the image is JPEG. Adjust accordingly.
+                mimetype=
+                'image/jpeg'    # This assumes the image is JPEG. Adjust accordingly.
             )
         else:
             return jsonify({'error': 'No photo found'}), 404
-            
 
     @app.route('/confirm/<token>', methods=['GET'])
     def confirm_email(token):
         try:
-            email = s.loads(token, salt='email-confirm', max_age=3600)  # Token expires after 1 hour
-            influencers_collection = getNewInfluencerListFromMongoDB();
-            user = influencers_collection.find_one({'email': email})
+            email = s.loads(token, salt='email-confirm',
+                            max_age=3600)    # Token expires after 1 hour
+            user = Influencer.objects(influencer_email=email).first()
             if user and not user['confirmed']:
-                influencers_collection.update_one({'email': email}, {'$set': {'is_email_confirmed': True}})
+                user.update(set__is_email_confirmed=True)
                 return jsonify(message="Email confirmed successfully"), 200
-            return jsonify(message="Email already confirmed or token expired"), 400
+            return jsonify(
+                message="Email already confirmed or token expired"), 400
         except SignatureExpired:
             return jsonify(message="The confirmation link has expired."), 400
-
-    def role_required(*roles):
-        def wrapper(fn):
-            @wraps(fn)
-            def decorated_view(*args, **kwargs):
-                if g.user is None or g.user.role not in roles:
-                    return jsonify({'error': 'Access denied'}), 403
-                return fn(*args, **kwargs)
-
-            return decorated_view
-
-        return wrapper
-
-    def validate_json(*required_args, one_of=None):
-        def decorator(fn):
-            @wraps(fn)
-            def wrapper(*args, **kwargs):
-                json_data = request.get_json()
-                if not json_data:
-                    abort(400, description="Invalid or missing JSON")
-                missing_required = [arg for arg in required_args if arg not in json_data]
-                if missing_required:
-                    abort(400, description=f"Missing {', '.join(missing_required)} in JSON data")
-
-                if one_of:
-                    if not any(key in json_data for key in one_of):
-                        abort(400, description=f"At least one of {', '.join(one_of)} is required")
-
-                return fn(*args, **kwargs)
-
-            return wrapper
-
-        return decorator
-
-    def safe_json_loads(data_str):
-        try:
-            return json.loads(data_str) if data_str and isinstance(data_str, str) else data_str
-        except json.JSONDecodeError:
-            return None
 
     @app.route('/update_influencer', methods=['POST'])
     def update_userinfo():
@@ -228,40 +261,57 @@ def create_app(test_config=None):
         if not email:
             return jsonify({'error': 'Missing email field'}), 400
 
-        # Get the MongoDB collection
-        influencers_collection = getNewInfluencerListFromMongoDB()
-
-        # Fetch the existing influencer information
-        influencer = influencers_collection.find_one({'influencer_email': email})
+        influencer = Influencer.objects(influencer_email=email).first()
         if not influencer:
             return jsonify({'error': 'Influencer not found'}), 404
 
         # Prepare updated data, only for fields that are allowed to change
         updated_data = {
-            "age": data.get('age', influencer.get('age')),
-            "country": data.get('country', influencer.get('country')),
-            "city_state": data.get('cityState', influencer.get('city_state')),
-            "phone": data.get('phone', influencer.get('phone')),
-            "shipping_address": data.get('shippingAddress',  influencer.get('shipping_address')),
-            "bio": data.get('bio', influencer.get('bio')),
-            "collaboration": data.get('collaborations', influencer.get('collaboration')),
-            "audience": data.get('audience', influencer.get('audience')),
-            "niche": data.get('niches', influencer.get('niche')),
-            "interest": data.get('interests', influencer.get('interest')),
-            "is_email_confirmed": data.get('is_email_confirmed', influencer.get('is_email_confirmed')),
+            "set__age":
+                data.get('age', influencer.get('age')),
+            "set__country":
+                data.get('country', influencer.get('country')),
+            "set__city_state":
+                data.get('cityState', influencer.get('city_state')),
+            "set__phone":
+                data.get('phone', influencer.get('phone')),
+            "set__shipping_address":
+                data.get('shippingAddress', influencer.get('shipping_address')),
+            "set__bio":
+                data.get('bio', influencer.get('bio')),
+            "set__collaboration":
+                data.get('collaborations', influencer.get('collaboration')),
+            "set__audience":
+                data.get('audience', influencer.get('audience')),
+            "set__niche":
+                data.get('niches', influencer.get('niche')),
+            "set__interest":
+                data.get('interests', influencer.get('interest')),
+            "set__is_email_confirmed":
+                data.get('is_email_confirmed',
+                         influencer.get('is_email_confirmed')),
         }
 
-        # Perform the update using $set to only modify allowed fields
-        update_result = influencers_collection.update_one(
-            {'influencer_email': email},
-            {'$set': updated_data}
-        )
+        update_result = Influencer.objects(influencer_email=email).update_one(
+            **updated_data)
 
-        # Check if the update was successful
-        if update_result.matched_count == 0:
+        # 检查是否有文档被更新
+        if update_result == 0:
             return jsonify({'error': 'Update failed'}), 500
 
-        return jsonify({'message': 'User information updated successfully'}), 200
+        return jsonify({'message': 'User information updated successfully'
+                       }), 200
+
+        # # Perform the update using $set to only modify allowed fields
+        # update_result = influencers_collection.update_one(
+        #     {'influencer_email': email}, {'$set': updated_data})
+
+        # # Check if the update was successful
+        # if update_result.matched_count == 0:
+        #     return jsonify({'error': 'Update failed'}), 500
+
+        # return jsonify({'message': 'User information updated successfully'
+        #                }), 200
 
     # Login
     @app.route('/login', methods=['POST'])
@@ -271,30 +321,29 @@ def create_app(test_config=None):
         influencer_identifier = data.get('email') or data.get('promocode')
         password = data.get('password')
 
-        influencers_collection = getNewInfluencerListFromMongoDB();
-        # Find user by influencer_name or influencer_email
-        user = influencers_collection.find_one(
-            {'$or': [{'promo_code': influencer_identifier}, {'influencer_email': influencer_identifier}]})
+        user = Influencer.objects(
+            Q(influencer_email=influencer_identifier) |
+            Q(promo_code=influencer_identifier)).first()
+
         if not user:
             return jsonify({'error': 'Email or promocode not found'}), 404
 
-        # # Check if the email is confirmed
-        # if user['is_email_confirmed']== False:
-        #     return jsonify({'error': 'Email not confirmed'}), 401
-
-        # Check password
-        if not check_password_hash(user['password'], password):
+        # check password
+        if not check_password_hash(user.password, password):
             return jsonify({'error': 'Invalid password'}), 401
 
         # JWT creation with expiration time
-        token = jwt.encode({
-            'user_id': str(user['_id']),
-            'exp': datetime.utcnow() + timedelta(hours=24)
-        }, app.config['SECRET_KEY'], algorithm='HS256')
+        token = jwt.encode(
+            {
+                'user_id': str(user.id),
+                'exp': datetime.utcnow() + timedelta(hours=24)
+            },
+            app.config['SECRET_KEY'],
+            algorithm='HS256')
 
         # Convert MongoDB documents to a JSON serializable format
         user_data = {}
-        for key, value in user.items():
+        for key, value in user.to_mongo().items():
             if isinstance(value, ObjectId):
                 user_data[key] = str(value)
             elif isinstance(value, bytes):
@@ -306,33 +355,33 @@ def create_app(test_config=None):
             else:
                 user_data[key] = value
         # print(user_data)
-        return jsonify({'message': 'Login successful', 'user': user_data, 'token': token}), 200
+        return jsonify({
+            'message': 'Login successful',
+            'user': user_data,
+            'token': token
+        }), 200
 
     @app.route('/checkusername', methods=['POST'])
     @validate_json('username')
     def already_has_username():
         data = request.get_json()
         username = data.get('username')
-        isUnique = True
-        influencers_collection = getNewInfluencerListFromMongoDB();
-        # Find user by username
-        user = influencers_collection.find_one({'influencer_name': username})
+
+        user = Influencer.objects(influencer_name=username).first()
         if user:
-            isUnique = False
-        return jsonify({'isUnique': isUnique}), 200
+            return jsonify({'isUnique': False}), 200
+
+        return jsonify({'isUnique': True}), 200
 
     @app.route('/checkemail', methods=['POST'])
     @validate_json('email')
     def check_email():
         data = request.get_json()
         email = data.get('email')
-        isUnique = True
-        influencers_collection = getNewInfluencerListFromMongoDB();
-        # Find user by email
-        email = influencers_collection.find_one({'influencer_email': email})
+        email = Influencer.objects(influencer_email=email).first()
         if email:
-            isUnique = False
-        return jsonify({'isUnique': isUnique}), 200
+            return jsonify({'isUnique': False}), 200
+        return jsonify({'isUnique': True}), 200
 
     @app.route('/promocode', methods=['POST'])
     @validate_json('firstname', 'lastname')
@@ -342,10 +391,14 @@ def create_app(test_config=None):
         last = data.get('lastname')
         encode = (last[0].upper() + first[0].upper()).strip() + '_NOVIBOX_'
 
-        influencers_collection = getNewInfluencerListFromMongoDB();
-        regex = f'^{encode}'
-        existing_promos = list(influencers_collection.find({'promo_code': {'$regex': regex}}))
-        promo_numbers = [int(promo['promo_code'].replace(encode, '')) for promo in existing_promos]
+        regex = re.compile(f'^{re.escape(encode)}')
+        existing_promos = Influencer.objects(promo_code=regex)
+
+        # 提取 promo codes 中的数字部分
+        promo_numbers = [
+            int(promo.promo_code.replace(encode, ''))
+            for promo in existing_promos
+        ]
 
         if promo_numbers:
             new_number = max(promo_numbers) + 1
@@ -354,104 +407,196 @@ def create_app(test_config=None):
 
         full_promo_code = encode + str(new_number)
 
-        return jsonify({'message': 'Generate successful', 'promocode': full_promo_code}), 200
+        return jsonify({
+            'message': 'Generate successful',
+            'promocode': full_promo_code
+        }), 200
 
     @app.route('/checkpromocode', methods=['POST'])
     @validate_json('promocode')
     def check_promo():
         data = request.get_json()
         promocode = data.get('promocode')
-        isUnique = True
-        influencers_collection = getNewInfluencerListFromMongoDB();
-        # Find user by promocode
-        user = influencers_collection.find_one({'promo_code': promocode})
+
+        user = Influencer.objects(promo_code=promocode).first()
         if user:
-            isUnique = False
+            return jsonify({'isUnique': False}), 200
 
-        return jsonify({'isUnique': isUnique}), 200
+        return jsonify({'isUnique': True}), 200
 
+    # TODO: need to confirm the details
     @app.route('/admindash', methods=['POST'])
     @validate_json('influencer_name', 'role')
     def get_adminbroad():
         data = request.get_json()
         influencer_name = data.get('influencer_name')
-        role = data.get('role')
-        products_list = []
-        influencer_list = []
-        all_influencers = countInfluencers()
-        last_month_sales = 0
-        last_month_orders = 0
 
         if influencer_name is None:
             return jsonify({'message': 'Influencer name is required'}), 400
+
+        role = data.get('role')
+        influencer_list = []
+        all_influencers = Influencer.objects.count()
+
+        last_month_sales = 0
+        last_month_orders = 0
+
         if role == 'admin':
+
+            # 获取什么信息？
             products_list = getProductListFromMongoDB()
 
-        influencers_collection = getNewInfluencerListFromMongoDB()
-        influencer_data = influencers_collection.find_one({'influencer_name': influencer_name})
+        influencer_data = Influencer.objects(
+            influencer_name=influencer_name).first()
 
         if influencer_data is not None:
-            products_list = influencer_data.get('product', [])
+            # products_list = influencer_data.get('product', [])
+            # TODO: get the necessary data from the influencer document
+            product_details = []
+            for influencer_product in influencer_data.product:
+                product = influencer_product.product
+                if product:
+                    # 此时product是一个Product对象的引用，可以直接访问其字段
+                    product_info = {
+                        'title':
+                            product.title,
+                        "commission_rate":
+                            influencer_product.commission,
+                        'status':
+                            True if product.product_contract_end
+                            > datetime.now() else False,
+                        "start_time":
+                            influencer_product.product_contract_start.strftime(
+                                "%Y-%m-%d")
+                            if influencer_product.product_contract_start else
+                            "N/A",
+                        "end_time":
+                            influencer_product.product_contract_end.strftime(
+                                "%Y-%m-%d") if
+                            influencer_product.product_contract_end else "N/A",
+                        "video_exposure":
+                            influencer_product.video_exposure,
+                        'product_shopify_id':
+                            product.product.shopify_id,
+                        'featuredImage':
+                            product.featuredImage,
+                        'onlineStoreUrl':
+                            product.onlineStoreUrl,
+                    }
+                    product_details.append(product_info)
 
         return jsonify({
             'data': {
                 'all_influencers': all_influencers,
                 'last_month_sales': last_month_sales,
                 'last_month_orders': last_month_orders,
-                'products': products_list
+                'products': product_details
             }
         }), 200
 
+    # TODO: need to confirm the details
     @app.route('/userdash', methods=['POST'])
     def get_userbroad():
         data = request.get_json()
         influencer_name = data.get('influencer_name')
-        role = data.get('role')
-        search = data.get('search')
-        products_list = []
-        influencer_name = data.get('influencer_name')
-        influencers_collection = getNewInfluencerListFromMongoDB();
-        user = influencers_collection.find_one({'influencer_name': influencer_name})
-        promocode = user['promo_code']
+
         if influencer_name is None:
             return jsonify({'message': 'Influencer name is required'}), 400
-        influencers_collection = getNewInfluencerListFromMongoDB()
-        influencer_data = influencers_collection.find_one({'influencer_name': influencer_name})
 
-        if influencer_data is not None:
-            products_list = influencer_data.get('product', [])
+        role = data.get('role')    # 这是用来干什么的？
+        search = data.get('search')    # 这是用来干什么的？
+
+        influencer_data = Influencer.objects(
+            influencer_name=influencer_name).first()
 
         order_nums = 0
         Total_Commissions = 0
-        last_month_orders = 0
+        last_month_orders = 0    # 上个月的订单数，没有更新
 
-        order_list = getOrderCollection().find({'promo_code': promocode}, {'_id': 0})
+        if influencer_data is not None:
+            products_list = influencer_data.product
+            promocode = influencer_data.promo_code
+
+            product_details = []
+            for influencer_product in influencer_data.product:
+                product = influencer_product.product
+                if product:
+                    # 此时product是一个Product对象的引用，可以直接访问其字段
+                    product_info = {
+                        'title':
+                            product.title,
+                        "commission_rate":
+                            influencer_product.commission,
+                        'status':
+                            True if product.product_contract_end
+                            > datetime.now() else False,
+                        "start_time":
+                            influencer_product.product_contract_start.strftime(
+                                "%Y-%m-%d")
+                            if influencer_product.product_contract_start else
+                            "N/A",
+                        "end_time":
+                            influencer_product.product_contract_end.strftime(
+                                "%Y-%m-%d") if
+                            influencer_product.product_contract_end else "N/A",
+                        "video_exposure":
+                            influencer_product.video_exposure,
+                        'product_shopify_id':
+                            product.product.shopify_id,
+                        'featuredImage':
+                            product.featuredImage,
+                        'onlineStoreUrl':
+                            product.onlineStoreUrl,
+                    }
+                    product_details.append(product_info)
+
+            # 返回order_nums, Total_Commissions, last_month_orders
+            order_nums = influencer_data.order_nums
+            Total_Commissions = influencer_data.total_commission
+
+            # last_month_orders 逻辑需要重新确认
+
+            # 打印或以其他方式处理product_details
+            print(product_details)
+        else:
+            return jsonify({'error': 'Influencer not found'}), 404
+
+        # order_list = Order.objects(discountCode=promocode)
+
+        # order_list = list(order_list)
+
+        # TODO: 为什么需要product——commission fee这个字段？用来干什么的？
         # 遍历所有相关订单
-        for doc in order_list:
-            if doc['financial_status'] == "refunded":
-                pass
-            # 订单创建时间
-            create_time = doc['lineitem'][0]['created_at']
-            # 解析时间戳字符串,并只选取年月日
-            create_time = datetime.strptime(create_time, '%Y-%m-%d %H:%M:%S %z').strftime('%Y-%m-%d')
-            create_time = datetime.strptime(create_time, '%Y-%m-%d')
-            for product in products_list:
-                if not product['commission_fee']:
-                    product['commission_fee'] = 0
-                # 看是否在带货列表中且购买日期在签约日期间
-                if product['product_sku'] == doc['lineitem'][0]['lineitem_sku'] and create_time > datetime.strptime(
-                        product['product_contract_start'], '%m-%d-%Y') and create_time > datetime.strptime(
-                    product['product_contract_end'], '%m-%d-%Y'):
-                    # 如果单个商品的分红值还是0， 就更新，不然就pass
-                    if product['commission_fee'] == 0:
-                        product['commission_fee'] = product['commission'] * doc['lineitem'][0]['lineitem_price']
-                    else:
-                        pass
-                    # 增加带货数
-                    order_nums += doc['lineitem'][0]['lineitem_quantity']
-                    # 增加总分红数
-                    Total_Commissions += doc['lineitem'][0]['lineitem_quantity'] * product['commission'] * \
-                                         doc['lineitem'][0]['lineitem_price']
+        # for doc in order_list:
+        #     if doc['financial_status'] == "refunded":
+        #         pass
+        #     # 订单创建时间
+        #     create_time = doc['lineitem'][0]['created_at']
+        #     # 解析时间戳字符串,并只选取年月日
+        #     create_time = datetime.strptime(
+        #         create_time, '%Y-%m-%d %H:%M:%S %z').strftime('%Y-%m-%d')
+        #     create_time = datetime.strptime(create_time, '%Y-%m-%d')
+        #     for product in products_list:
+        #         if not product['commission_fee']:
+        #             product['commission_fee'] = 0
+        #         # 看是否在带货列表中且购买日期在签约日期间
+        #         # 这里的逻辑有问题，需要重新确认
+        #         if product['product_sku'] == doc['lineitem'][0][
+        #                 'lineitem_sku'] and create_time > datetime.strptime(
+        #                     product['product_contract_start'],
+        #                     '%m-%d-%Y') and create_time > datetime.strptime(
+        #                         product['product_contract_end'], '%m-%d-%Y'):
+        #             # 如果单个商品的分红值还是0， 就更新，不然就pass
+        #             if product['commission_fee'] == 0:
+        #                 product['commission_fee'] = product['commission'] * doc[
+        #                     'lineitem'][0]['lineitem_price']
+        #             else:
+        #                 pass
+        #             # 增加带货数
+        #             order_nums += doc['lineitem'][0]['lineitem_quantity']
+        #             # 增加总分红数
+        #             Total_Commissions += doc['lineitem'][0]['lineitem_quantity'] * product['commission'] * \
+        #                                  doc['lineitem'][0]['lineitem_price']
 
         return jsonify({
             'cards': {
@@ -459,40 +604,48 @@ def create_app(test_config=None):
                 'last_month_sales': Total_Commissions,
                 'last_month_orders': last_month_orders
             },
-            'products': products_list
+            'products': product_details
         }), 200
 
     # Forgot password endpoint
     @app.route('/forgot_password', methods=['POST'])
+    @validate_json('influencer_email')
     def forgot_password():
         data = request.get_json()
         influencer_email = data.get('influencer_email')
 
         # Check if user exists
-        influencers_collection = getNewInfluencerListFromMongoDB()
-        user = influencers_collection.find_one({'influencer_email': influencer_email})
+        user = Influencer.objects(influencer_email=influencer_email).first()
         if not user:
             return jsonify({'error': 'User not found'}), 404
 
         token = s.dumps(influencer_email, salt='email-reset')
-        msg = Message('Password Reset Request', sender=app.config['MAIL_USERNAME'], recipients=[influencer_email])
+        msg = Message('Password Reset Request',
+                      sender=app.config['MAIL_USERNAME'],
+                      recipients=[influencer_email])
         reset_path = '/session/reset-password/' + token
-        ## Change to real Domain
+        # Change to real Domain
         domain = app.config["BASEURL"]
         link = f"{domain}{reset_path}"
         # msg.body = f'Your link to reset your password is {link}'
-        msg.html = render_template('email/email_template.html', link=link, username="Test")
+        msg.html = render_template('email_template.html',
+                                   link=link,
+                                   username="Test")
         try:
             mail.send(msg)
-            return jsonify({'message': 'Email Sent'}), 200  # Email sent successfully
+            return jsonify({'message': 'Email Sent'
+                           }), 200    # Email sent successfully
         except Exception as e:
             print(e)
-            return 500  # Email sending failed
+            return jsonify({'message': 'Email sending failed'
+                           }), 500    # Email sending failed
 
     @app.route('/reset/<token>', methods=['GET', 'POST'])
+    @validate_json('password')
     def reset_with_token(token):
         try:
-            email = s.loads(token, salt='email-reset', max_age=1800)  # Token is valid for 30 min
+            email = s.loads(token, salt='email-reset',
+                            max_age=1800)    # Token is valid for 30 min
         except SignatureExpired:
             return jsonify({'message': 'Token Expired'}), 404
 
@@ -500,10 +653,10 @@ def create_app(test_config=None):
             data = request.get_json()
             password = data.get('password')
             hashed_password = generate_password_hash(password)
-            influencers_collection = getNewInfluencerListFromMongoDB()
-            influencers_collection.update_one({'influencer_email': email},
-                                              {'$set': {'password': hashed_password}})
+            influencer = Influencer.objects(influencer_email=email).first()
+            influencer.update(set__password=hashed_password)
             return jsonify({'message': 'Password reset successfully'}), 200
+
         return jsonify({'message': 'Token Valid'}), 200
 
     @app.route('/productlist', methods=['POST'])
@@ -518,37 +671,29 @@ def create_app(test_config=None):
 
         return jsonify({'products': products_list}), 200
 
+    # TODO: need to confirm the logic
     @app.route('/yourproducts', methods=['POST'])
     @validate_json('influencer_name', 'role')
     def get_influencer_products():
         data = request.get_json()
         influencer_name = data.get('influencer_name')
-        search_term = data.get('search', '')
+        # 逻辑有问题，search_term为空时，default设置search_term为''而不是空，not ''为True，那最后都会加到products_list中
+        # search_term = data.get('search', '')
+        search_term = data.get('search')    #暂时改为不设置默认值，有问题指正我
 
         if not influencer_name:
             return jsonify({'message': 'Influencer name is required'}), 400
 
+        # need to confirm the details
         products_list = getInflencerProducts(influencer_name, search_term)
 
         return jsonify({'products': products_list}), 200
 
-    @app.route('/products')
-    def getProductsInfoFromMongoDB():
-        products_cursor = getProductListFromMongoDB()
-        products_list = list(products_cursor)
-
-        return jsonify({
-            'code': '0000',
-            'data': {
-                'products': products_list
-            },
-            'msg': 'success'
-        }), 200
-
+    # TODO: 还没来得及看，这个函数是用来干什么的？
     @app.route('/orderlist', methods=['POST'])
     def get_orderlist():
         data = request.get_json()
-        search_term = data.get('search', '')
+        search_term = data.get('search', '')    # TODO: 这个search_term是用来干什么的？
         role = data.get('role')
         influencer_name = data.get('influencer_name')
         promocode = None
@@ -562,78 +707,144 @@ def create_app(test_config=None):
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
-    @app.route('/orders')
-    def getOrdersInfoFromMongoDB():
-        orders_cursor = getOrderListFromMongoDB();
-        orders_list = list(orders_cursor)
+    # @app.route('/products')
+    # def getProductsInfoFromMongoDB():
+    #     products_list = getProductListFromMongoDB()
+
+    #     # user_data = {}
+
+    #     products_list = [
+    #         product.to_mongo().to_dict() for product in products_list
+    #     ]
+    #     current_app.logger.info(products_list[0])
+
+    #     return jsonify({
+    #         'data': {
+    #             'products': products_list
+    #         },
+    #         'message': 'success'
+    #     }), 200
+
+    # @app.route('/customers')
+    # def getCustomersInfoFromMongoDB():
+    #     customers_list = getCustomerListFromMongoDB()
+
+    #     return jsonify({
+    #         'data': {
+    #             'customers': customers_list
+    #         },
+    #         'message': 'success'
+    #     }), 200
+
+    @app.route('/influencers')
+    def getInfluencersInfoFromMongoDB():
+
+        influencers_list = getInfluencerListFromMongoDB()
 
         return jsonify({
-            'code': '0000',
             'data': {
-                'orders': orders_list
+                'influencers': influencers_list
             },
-            'msg': 'success'
-        }), 200
-
-    @app.route('/customers')
-    def getCustomersInfoFromMongoDB():
-        customers_cursor = getCustomerListFromMongoDB()
-        customers_list = list(customers_cursor)
-
-        return jsonify({
-            'code': '0000',
-            'data': {
-                'customers': customers_list
-            },
-            'msg': 'success'
+            'message': 'success'
         })
 
+    # TODO: 需要什么字段确定
     @app.route('/influencerlist', methods=['POST'])
     def get_influencerlist():
         data = request.get_json()
         search_term = data.get('search', '')
         role = data.get('role', '')
 
-        influencers = search_influencerList(search=search_term)
-        influencers_list = list(influencers)
-
         if role == 'admin':
-            return jsonify({'influencers': influencers_list}), 200
+            influencers = search_influencerList(search=search_term)
+            return jsonify({'influencers': influencers}), 200
         else:
             return jsonify({'msg': 'Not admin account'}), 200
 
-    @app.route('/influencers')
-    def getInfluencersInfoFromMongoDB():
-        influencers_cursor = getInfluencerListFromMongoDB()
-        influencers_list = list(influencers_cursor)
-
-        return jsonify({
-            'code': '0000',
-            'data': {
-                'influencers': influencers_list
-            },
-            'msg': 'success'
-        })
-
-    @app.route('/')
-    def hello_novi_box():
-        return "hello_novi_box"
-
-    # aichatbot service
+    #########################################################
+    #################### aichatbot service ##################
+    #########################################################
     @app.route('/user-typing', methods=['POST'])
     def user_typing():
         req = request.json
-        return userTyping(req)
+        try:
+            res, status_code = userTyping(req)
+            return jsonify(res), status_code
+        except Exception as error:
+            return jsonify({'message': error}), 400
 
     @app.route('/recommand-list', methods=['POST'])
     def recommand_by_list():
         req = request.json
-        return recommandGiftByList(req)
+        try:
+            current_app.logger.info('recommand by list')
+            res, status_code = recommandGiftByList(req)
+            return jsonify(res), status_code
+        except Exception as error:
+            return jsonify({'message': error}), 400
 
     @app.route('/recommand-user-typing', methods=['POST'])
     def recommand_by_user_typing():
-        req = request.json
-        return recommandGiftByUserInput(req)
+        data = request.get_json()
+        user_input = data.get('user_typing')
+        try:
+            result = write_by_ai(user_input)
+            return jsonify({'result': result}), 200
+        except Exception as error:
+            return jsonify({'error': error}), 400
+
+    @app.route('/recommand-typing', methods=['POST'])
+    def recommand_by_typing():
+        data = request.get_json()
+        try:
+            res, status_code = recommandGiftByUserInput(data)
+            return jsonify(res), status_code
+        except Exception as error:
+            return jsonify({
+                'code': "0001",
+                "data": None,
+                'message': error
+            }), 400
+
+    @app.route('/gift-swip', methods=['POST'])
+    def recommand_by_tags():
+        data = request.get_json()
+        try:
+            res, status_code = recommandGiftByTags(data)
+            return jsonify(res), status_code
+        except Exception as error:
+            return jsonify({'message': error}), 400
+
+    #########################################################
+    #####################  webhook service ##################
+    #########################################################
+    def verify_webhook(data, hmac_header):
+        digest = hmac.new(app.config['SHOPIFY_API_PASSWORD'].encode('utf-8'),
+                          data,
+                          digestmod=hashlib.sha256).digest()
+        computed_hmac = base64.b64encode(digest)
+
+        return hmac.compare_digest(computed_hmac, hmac_header.encode('utf-8'))
+
+    @app.route('/webhook', methods=['POST'])
+    def handle_webhook():
+
+        data = request.get_data()
+        # TODO: 现在不知道私钥是什么
+        # verified = verify_webhook(data,
+        #                           request.headers.get('X-Shopify-Hmac-SHA256'))
+
+        # if not verified:
+        #     abort(401)
+
+        # Process webhook payload
+        webhookService(data)
+
+        return ('', 200)
+
+    @app.route('/')
+    def hello_novi_box():
+        return "hello novi box"
 
     return app
 

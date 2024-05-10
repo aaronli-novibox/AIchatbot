@@ -1,0 +1,31 @@
+    fragment CollectionInfo on Collection {
+        id
+        availablePublicationCount
+        description
+        handle
+        #hasProduct
+        legacyResourceId
+        productsCount
+        publicationCount
+        publishedOnCurrentPublication
+        #publishedOnPublication
+        #seo
+        sortOrder
+        templateSuffix
+        title
+        #translations
+        updatedAt
+    }
+    
+    query GetOneCollection($collection_id: ID!){
+        node(id: $collection_id){
+            ...CollectionInfo
+        }
+    }
+
+    query GetManyCollections($collection_ids: [ID!]!){
+        nodes(ids: $collection_ids){
+           ...CollectionInfo
+        }
+    }
+

@@ -200,6 +200,14 @@ class InventoryQuantity(Document):
     quantity = IntField(required=True)
     updatedAt = DateTimeField(default=datetime.now)
 
+class Metafield(Document):
+
+    shopify_id = StringField(required=True, unique=True, help_text="Globally unique identifier.")
+    namespace = StringField(required=True, help_text="The container for a set of metadata.")
+    key = StringField(required=True, help_text="A unique identifier for the metafield.")
+    value = StringField(required=True, help_text="Information to be stored as metadata.")
+
+
 
 class LocationAddress(EmbeddedDocument):
     address1 = StringField(help_text="The first line of the address for the location.")
@@ -252,7 +260,21 @@ class LocationSuggestedAddress(EmbeddedDocument):
 
 
 
-
+class LineItem(Document):
+    shopify_id = StringField(required=True, unique=True, help_text="Globally unique identifier.")
+    lineitem_quantity = IntField(required=True, help_text="The number of items purchased.")
+    lineitem_name = StringField(required=True, help_text="The title of the product.")
+    lineitem_price = DecimalField(required=True, help_text="The price of the item.")
+    lineitem_compare_at_price = DecimalField(help_text="The compare at price of the item.")
+    lineitem_sku = StringField(help_text="The SKU of the item.")
+    lineitem_requires_shipping = BooleanField(help_text="Whether the item requires shipping.")
+    lineitem_taxable = BooleanField(help_text="Whether the item is taxable.")
+    lineitem_fulfillment_status = StringField(help_text="The fulfillment status of the item.")
+    lineitem_discount = DecimalField(help_text="The discount amount applied to the item.")
+    vendor = StringField(help_text="The vendor of the item.")
+    product = LazyReferenceField('Product')
+    order = LazyReferenceField('Order')
+    variant = LazyReferenceField('ProductVariant')
 
 
 
