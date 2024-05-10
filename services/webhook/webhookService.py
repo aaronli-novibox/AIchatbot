@@ -16,9 +16,7 @@ def webhookService(headers, json_data):
 
         data_item = shopify.Order.find(json_data.get("id", None))
 
-        document = Path(
-            '/Users/tengyp/work/NoviBox/backend/AIChatBotPY/flaskr/query_files/orders.graphql'
-        ).read_text()
+        document = Path('flaskr/query_files/orders.graphql').read_text()
         dataInfo = shopify.GraphQL().execute(query=document,
                                              variables={"order_id": dataId},
                                              operation_name="GetOneOrder")
@@ -81,9 +79,11 @@ def webhookService(headers, json_data):
         # 加上influencer的逻辑
         influencer = Influencer.objects(promo_code=order.discountCode).first()
 
+        print(order.discountCode)
+
         if influencer:
             if order not in influencer.orders:
-                influencer.orders.append(order)
+                influencer.append_order(order)
                 influencer.save()
 
         return order
@@ -132,8 +132,7 @@ def webhookService(headers, json_data):
                           str) and 'MediaImage' in metafield.value:
 
                 document = Path(
-                    '/Users/tengyp/work/NoviBox/backend/AIChatBotPY/flaskr/query_files/mediaImage.graphql'
-                ).read_text()
+                    'flaskr/query_files/mediaImage.graphql').read_text()
                 dataInfo = shopify.GraphQL().execute(
                     query=document,
                     variables={"media_image_id": metafield.value},
@@ -169,9 +168,7 @@ def webhookService(headers, json_data):
 
         dataId = f"gid://shopify/Customer/{json_data.get('id', None)}"
 
-        document = Path(
-            '/Users/tengyp/work/NoviBox/backend/AIChatBotPY/flaskr/query_files/customer.graphql'
-        ).read_text()
+        document = Path('flaskr/query_files/customer.graphql').read_text()
         dataInfo = shopify.GraphQL().execute(query=document,
                                              variables={"customer_id": dataId},
                                              operation_name="GetOneCustomer")
@@ -247,45 +244,3 @@ def recursive_replace_keys(data, key_changes):
             # Simply copy the value if it is not a dictionary.
             new_data[new_key] = value
     return new_data
-
-
-def insertCustomerToMongoDB(data):
-
-    customer = customerCreate(data)
-    customerCollection(customer)
-
-
-def customerCollection(customer_data):
-    customer_collection = g.db['test2']["customers"]
-    customer_collection.insert_one(customer_data)
-
-
-def customerCreate(data):
-
-    address = data.get("adress", [])
-    customer = {
-        "customer_id": data.get("id", None),
-        "first_name": data.get("first_name", None),
-        "last_name": data.get("last_name", None),
-        "customer_email": data.get("email", None),
-        "accepts_email_marketing": data.get("email_marketing_consent", None),
-        "phone": data.get("phone", None),
-        "accepts_sms_marketing": data.get("sms_marketing_consent", None),
-        "total_spent": data.get("total_spent", 0.00),
-        "total_orders": data.get("orders_count", 0),
-        "note": data.get("note", None),
-        "tax_exempt": data.get("tax_exempt", "no"),
-        "tags": data.get("tags", None),
-        "default_address": {
-            "address1": data.get("addresses", None),
-            "address2": data.get("Default Address Address2", None),
-            "company": None,
-            "city": address.get("Default Address City", None),
-            "zip": address.get("Default Address Zip", None),
-            "province": address.get("Default Address Province Code", None),
-            "country": address.get("Default Address Country Code", None),
-            "phone": address.get("Default Address Phone", None),
-        },
-    }
-
-    return customer

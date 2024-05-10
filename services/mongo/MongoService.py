@@ -8,30 +8,39 @@ from mongoengine import Q
 # return cursor type, and filter '_id' field
 def getProductListFromMongoDB():
 
-    products = Product.objects.exclude('id', 'descriptionVector')
+    products = Product.objects.only(
+        'title',
+        'shopify_id',
+        'description',
+        'featuredImage',
+        'onlineStoreUrl',
+        'priceRangeV2',
+        'tags',
+        'productType',
+    )
 
-    return list(products)    # 返回产品列表
+    return [product.to_mongo().to_dict() for product in products]    # 返回产品列表
 
 
 def getOrderListFromMongoDB():
 
-    orders = Order.objects.exclude('id')
+    orders = Order.objects.only('name',)
 
     return list(orders)    # 返回订单列表
 
 
 def getCustomerListFromMongoDB():
 
-    customers = Customer.objects.exclude('id')
+    customers = Customer.objects.only('name', 'email')
 
-    return list(customers)    # 返回客户列表
+    return [cus.to_mongo().to_dict() for cus in customers]    # 返回客户列表
 
 
 def getInfluencerListFromMongoDB():
 
-    influencers = Influencer.objects.exclude('id')
+    influencers = Influencer.objects.only('influencer_name', 'promo_code')
 
-    return list(influencers)    # 返回影响者列表
+    return [infl.to_mongo().to_dict() for infl in influencers]    # 返回影响者列表
 
 
 def search_influencerList(search=''):
@@ -42,12 +51,14 @@ def search_influencerList(search=''):
         influencers = Influencer.objects(
             Q(influencer_name__iregex=regex_pattern) |
             Q(promo_code__iregex=regex_pattern)).exclude(
-                'id', 'password')    # 排除 '_id' 和 'password' 字段
+                'id', 'password', 'orders',
+                'product')    # 排除 '_id' 和 'password' 字段
     else:
         # 没有搜索词则返回所有影响者，并排除特定字段
-        influencers = Influencer.objects.exclude('id', 'password')
+        influencers = Influencer.objects.exclude('id', 'password', 'orders',
+                                                 'product')
 
-    return influencers
+    return [inflo.to_mongo().to_dict() for inflo in influencers]
 
 
 def get_promocode(influencer_name=''):
@@ -57,16 +68,6 @@ def get_promocode(influencer_name=''):
     if influencer:
         return influencer.promo_code
     return None
-
-
-def getNewInfluencerListFromMongoDB():
-    influencer_collection = g.db['test2']["new_influencers"]
-    return influencer_collection
-
-
-def getOrderCollection():
-    order_collection = g.db['test2']["new_filled_orders"]
-    return order_collection
 
 
 def replace_nan_with_none(data):
@@ -225,12 +226,6 @@ def getOrdersFromMongoDB(promocode='',
     return influencer_order_commission
 
 
-def countInfluencers():
-    influencer_collection = getNewInfluencerListFromMongoDB()
-    count = influencer_collection.count_documents({})
-    return count
-
-
 def insertInfluencerData(influencer_data):
     promo_codes = [data['promo_code'] for data in influencer_data]
 
@@ -268,14 +263,14 @@ def getInflencerProducts(influencer_name, search_term=''):
                 product.product.title,
             'commission_rate':
                 product.commission,    # Default to '8%' if not specified
-            'status':
-                True,
             'product_shopify_id':
                 product.product.shopify_id,
             'start_time':
-                product.product_contract_start,
+                product.product_contract_start.strftime("%Y-%m-%d")
+                if product.product_contract_start else "N/A",
             'end_time':
-                product.product_contract_end,
+                product.product_contract_end.strftime("%Y-%m-%d")
+                if product.product_contract_end else "N/A",
             'status':
                 True
                 if product.product_contract_end > datetime.now() else False,
@@ -393,11 +388,11 @@ def get_all_products_mongodb(search_term=''):
             'productType',
         )
 
-    products = products.to_mongo().to_dict('records')
-
-    # 将查询结果转换为列表并添加佣金率
-    products = list(products)
+    product_list = []
     for product in products:
-        product['commission_rate'] = "8%"
 
-    return products
+        product_list.append(product.to_mongo().to_dict())
+        # 将查询结果转换为列表并添加佣金率
+        product_list[-1]['commission_rate'] = "8%"
+
+    return product_list

@@ -8,6 +8,7 @@ class InfluencerProduct(EmbeddedDocument):
 
     product = ReferenceField(Product)
     commission = StringField(default="8%")
+    commission_fee = DecimalField(default=0)
     product_contract_start = DateTimeField()
     product_contract_end = DateTimeField()
     video_exposure = StringField()
@@ -73,7 +74,47 @@ class Influencer(Document):
 
     orders = ListField(ReferenceField(Order), default=[])
 
+    order_nums = DecimalField(default=0)    # 订单中商品的数量
+    total_commission = DecimalField(default=0)    # 总佣金
+
     is_email_confirmed = BooleanField()
+
+    def append_order(self, order):
+
+        self.orders.append(order)
+
+        for li in order.lineitem:
+
+            # 增加class中的order_nums
+            self.order_nums += li.quantity
+
+            # 找到对应的product
+            product_details = self.find_product(li.product.id)
+
+            if product_details:
+                if product_details.product_contract_start <= order.created_at and product_details.product_contract_end >= order.created_at:
+
+                    # 增加class中的total_commission
+                    self.total_commission += (
+                        float(product_details.commission.replace('%', '')) /
+                        100) * li.lineitem_quantity * li.lineitem_price
+
+                    # 如果对应的commission_fee为0，那么就计算commission_fee？ 这里实在没看懂
+                    if product_details.commission_fee == 0:
+                        product_details.commission_fee = (
+                            float(product_details.commission.replace('%', '')) /
+                            100) * li.lineitem_price
+
+                    product_details.save()
+
+        self.save()
+
+    def find_product(self, product_id):
+
+        for ip in self.product:
+            if ip.product and ip.product.id == product_id:
+                return ip
+        return None
 
 
 # example
