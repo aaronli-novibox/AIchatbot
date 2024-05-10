@@ -63,7 +63,7 @@ class Influencer(Document):
     country = StringField()
     city_state = StringField()
     age = StringField()
-    audience = StringField()
+    audience = ListField(StringField(), default=[])
     phone = StringField()
     shipping_address = StringField()
 
@@ -86,7 +86,9 @@ class Influencer(Document):
 
     def append_order(self, order):
 
-        self.orders.append(order)
+        order_info = OrderInfo(order=order).save()
+
+        self.orders.append(order_info)
 
         for li in order.lineitem:
 
@@ -99,10 +101,12 @@ class Influencer(Document):
             if product_details:
                 if product_details.product_contract_start <= order.created_at and product_details.product_contract_end >= order.created_at:
 
-                    # 增加class中的total_commission
-                    self.total_commission += (
+                    order_info.order_commission_fee += (
                         float(product_details.commission.replace('%', '')) /
                         100) * li.lineitem_quantity * li.lineitem_price
+
+                    # 增加class中的total_commission
+                    self.total_commission += order_info.order_commission_fee
 
                     # 如果对应的commission_fee为0，那么就计算commission_fee？ 这里实在没看懂
                     if product_details.commission_fee == 0:
@@ -112,12 +116,21 @@ class Influencer(Document):
 
                     product_details.save()
 
+        order_info.save()
+
         self.save()
 
     def find_product(self, product_id):
 
         for ip in self.product:
             if ip.product and ip.product.id == product_id:
+                return ip
+        return None
+
+    def find_product_by_shopifyid(self, product_id):
+
+        for ip in self.product:
+            if ip.product and ip.product.shopify_id == product_id:
                 return ip
         return None
 

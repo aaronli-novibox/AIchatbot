@@ -352,6 +352,7 @@ def get_all_products_mongodb(influencer_instance, search_term=''):
 
     # Get all products
     if search_term:
+
         regex_pattern = f".*{search_term}.*"
         # 使用 MongoEngine 进行模糊搜索并确保产品状态为 "active"
         products = Product.objects(
@@ -367,9 +368,9 @@ def get_all_products_mongodb(influencer_instance, search_term=''):
             'tags',
             'productType',
         ).exclude('id')
+
     else:
-        # 获取所有状态为 "active" 的产品并排除 '_id' 字段
-        products = Product.objects(status="active"    # 仅选取状态为 "active" 的产品
+        products = Product.objects(status="ACTIVE"    # 仅选取状态为 "active" 的产品
                                   ).only(
                                       'title',
                                       'shopify_id',
@@ -387,8 +388,11 @@ def get_all_products_mongodb(influencer_instance, search_term=''):
 
         prod = influencer_instance.find_product_by_shopifyid(product.shopify_id)
         product_dict = product.to_mongo().to_dict()
-        product_dict[
-            'commission_rate'] = prod.commission if prod else "8%"    # 添加佣金率
+        if prod:
+            product_dict['commission_rate'] = prod.commission
+        else:
+            product_dict['commission_rate'] = "8%"
+
         product_list.append(product_dict)
 
     return product_list
