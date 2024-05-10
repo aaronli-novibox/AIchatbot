@@ -128,16 +128,19 @@ def create_app(test_config=None):
                         arg for arg in required_args if arg not in json_data
                     ]
                     if missing_required:
-                        abort(400,
+                        abort(
+                            400,
                             description=
-                            f"Missing {', '.join(missing_required)} in JSON data")
+                            f"Missing {', '.join(missing_required)} in JSON data"
+                        )
 
                     if one_of:
                         if not any(key in json_data for key in one_of):
                             abort(
                                 400,
                                 description=
-                                f"At least one of {', '.join(one_of)} is required")
+                                f"At least one of {', '.join(one_of)} is required"
+                            )
 
                 return fn(*args, **kwargs)
 
@@ -181,20 +184,24 @@ def create_app(test_config=None):
         user = Influencer.objects(influencer_email=email).first()
         if user:
             return jsonify({'error': 'Email already in use'}), 409
-        
+
         # send authentication email
         if email != app.config['BDEMAIL']:
             token = s.dumps(email, salt='email-confirm')
             confirm_url = f"{app.config['BASEURL']}/session/confirm/{token}"
-            msg = Message("Please Confirm Your Email", sender=app.config['MAIL_USERNAME'], recipients=[email])
+            msg = Message("Please Confirm Your Email",
+                          sender=app.config['MAIL_USERNAME'],
+                          recipients=[email])
             msg.html = render_template('email_verfication.html',
-                                    link=confirm_url,
-                                    username=first_name)
+                                       link=confirm_url,
+                                       username=first_name)
         else:
             confirm = True
-            msg = Message("New Inflencer Added", sender=app.config['MAIL_USERNAME'], recipients=[email])
+            msg = Message("New Inflencer Added",
+                          sender=app.config['MAIL_USERNAME'],
+                          recipients=[email])
             msg.body = f"New influencer {first_name} has registered with this email"
-    
+
         hashed_password = generate_password_hash(data['password'],
                                                  method='pbkdf2:sha256')
 
@@ -227,7 +234,8 @@ def create_app(test_config=None):
             mail.send(msg)
         except Exception as e:
             print(e)
-            return jsonify({'message': 'Email sending failed'}), 500    # Email sending failed
+            return jsonify({'message': 'Email sending failed'
+                           }), 500    # Email sending failed
 
         # Save user data to MongoDB
         Influencer(**user_data).save()
@@ -257,8 +265,7 @@ def create_app(test_config=None):
             if user and not user.is_email_confirmed:
                 user.update(set__is_email_confirmed=True)
                 return jsonify(message="Email confirmed successfully"), 200
-            return jsonify(
-                message="Email already confirmed"), 200
+            return jsonify(message="Email already confirmed"), 200
         except SignatureExpired:
             return jsonify(message="The confirmation link has expired."), 400
 
@@ -337,7 +344,7 @@ def create_app(test_config=None):
 
         if not user:
             return jsonify({'error': 'Email or promocode not found'}), 404
-        
+
         if not user.is_email_confirmed:
             return jsonify({'error': 'Email not confirmed'}), 400
 

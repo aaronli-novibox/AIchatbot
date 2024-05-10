@@ -279,6 +279,7 @@ class LineItem(Document):
 
 
 
+
 class NavigationItem(Document):
     # Assuming a simplified structure; add more specific fields as necessary
     shopify_id = StringField(required=True, unique=True)

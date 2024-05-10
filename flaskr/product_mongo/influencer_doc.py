@@ -84,6 +84,7 @@ class Influencer(Document):
 
     is_email_confirmed = BooleanField()
 
+    # 来一笔新订单，更新influencer的信息，webhook
     def append_order(self, order):
 
         order_info = OrderInfo(order=order).save()
@@ -95,28 +96,27 @@ class Influencer(Document):
             for li in order.lineitem:
 
                 # 增加class中的order_nums
-                self.order_nums += li.quantity
+                self.order_nums += li.lineitem_quantity
 
                 # 找到对应的product
                 product_details = self.find_product(li.product.id)
 
-                if product_details:
-                    if product_details.product_contract_start <= order.created_at and product_details.product_contract_end >= order.created_at:
+                if product_details and product_details.product_contract_start <= order.created_at and product_details.product_contract_end >= order.created_at:
 
-                        order_info.order_commission_fee += (
+                    order_info.order_commission_fee += (
+                        float(product_details.commission.replace('%', '')) /
+                        100) * li.lineitem_quantity * li.lineitem_price
+
+                    # 增加class中的total_commission
+                    self.total_commission += order_info.order_commission_fee
+
+                    # 如果对应的commission_fee为0，那么就计算commission_fee？ 这里实在没看懂
+                    if product_details.commission_fee == 0:
+                        product_details.commission_fee = (
                             float(product_details.commission.replace('%', '')) /
-                            100) * li.lineitem_quantity * li.lineitem_price
+                            100) * li.lineitem_price
 
-                        # 增加class中的total_commission
-                        self.total_commission += order_info.order_commission_fee
-
-                        # 如果对应的commission_fee为0，那么就计算commission_fee？ 这里实在没看懂
-                        if product_details.commission_fee == 0:
-                            product_details.commission_fee = (float(
-                                product_details.commission.replace(
-                                    '%', '')) / 100) * li.lineitem_price
-
-                        product_details.save()
+                    product_details.save()
 
                 else:
                     order_info.order_commission_fee += 0.08 * li.lineitem_quantity * li.lineitem_price
