@@ -17,28 +17,31 @@ def getProductListFromMongoDB():
         'priceRangeV2',
         'tags',
         'productType',
-    )
+    ).exclude('id')
 
     return [product.to_mongo().to_dict() for product in products]    # 返回产品列表
 
 
 def getOrderListFromMongoDB():
 
-    orders = Order.objects.only('name',)
+    orders = Order.objects.only('name',).exclude('id')
 
     return list(orders)    # 返回订单列表
 
 
 def getCustomerListFromMongoDB():
 
-    customers = Customer.objects.only('name', 'email')
+    customers = Customer.objects.only('name', 'email').exclude('id')
 
     return [cus.to_mongo().to_dict() for cus in customers]    # 返回客户列表
 
 
 def getInfluencerListFromMongoDB():
 
-    influencers = Influencer.objects.only('influencer_name', 'promo_code')
+    influencers = Influencer.objects.only('influencer_name',
+                                          'promo_code').exclude(
+                                              'id', 'password', 'orders',
+                                              'product')
 
     return [infl.to_mongo().to_dict() for infl in influencers]    # 返回影响者列表
 
@@ -247,7 +250,7 @@ def getInflencerProducts(influencer_name, search_term=''):
 
     # Get Influencers Infor and products
     influencer_info = Influencer.objects(
-        influencer_name=influencer_name).first().exclude('id')
+        influencer_name=influencer_name).first()
     if influencer_info is None:
         print(f"No influncer found with name {influencer_name}")
         return
@@ -374,7 +377,7 @@ def get_all_products_mongodb(search_term=''):
             'priceRangeV2',
             'tags',
             'productType',
-        )
+        ).exclude('id')
     else:
         # 获取所有产品并排除 '_id' 字段
         products = Product.objects.only(
@@ -386,7 +389,9 @@ def get_all_products_mongodb(search_term=''):
             'priceRangeV2',
             'tags',
             'productType',
-        )
+        ).exclude('id')
+
+    current_app.logger.info("here")
 
     product_list = []
     for product in products:
@@ -394,5 +399,5 @@ def get_all_products_mongodb(search_term=''):
         product_list.append(product.to_mongo().to_dict())
         # 将查询结果转换为列表并添加佣金率
         product_list[-1]['commission_rate'] = "8%"
-
+    current_app.logger.info("here")
     return product_list
