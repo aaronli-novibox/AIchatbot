@@ -120,23 +120,27 @@ def create_app(test_config=None):
 
             @wraps(fn)
             def wrapper(*args, **kwargs):
-                json_data = request.get_json()
-                if not json_data:
-                    abort(400, description="Invalid or missing JSON")
-                missing_required = [
-                    arg for arg in required_args if arg not in json_data
-                ]
-                if missing_required:
-                    abort(400,
-                          description=
-                          f"Missing {', '.join(missing_required)} in JSON data")
-
-                if one_of:
-                    if not any(key in json_data for key in one_of):
+                if request.method == 'POST':
+                    json_data = request.get_json()
+                    if not json_data:
+                        abort(400, description="Invalid or missing JSON")
+                    missing_required = [
+                        arg for arg in required_args if arg not in json_data
+                    ]
+                    if missing_required:
                         abort(
                             400,
                             description=
-                            f"At least one of {', '.join(one_of)} is required")
+                            f"Missing {', '.join(missing_required)} in JSON data"
+                        )
+
+                    if one_of:
+                        if not any(key in json_data for key in one_of):
+                            abort(
+                                400,
+                                description=
+                                f"At least one of {', '.join(one_of)} is required"
+                            )
 
                 return fn(*args, **kwargs)
 
@@ -158,6 +162,7 @@ def create_app(test_config=None):
         file = request.files.get('avatar')
         confirm = False
         email = data['email']
+        first_name = data.get('firstName')
 
         collaborations = json.loads(data.get('collaborations', '[]'))
         niches = json.loads(data.get('niches', '[]'))
@@ -175,23 +180,27 @@ def create_app(test_config=None):
         else:
             binary_data = None
 
-        # Check if user already exists
+        # send authentication email
         if email != app.config['BDEMAIL']:
+            # Check if user already exists
             user = Influencer.objects(influencer_email=email).first()
             if user:
                 return jsonify({'error': 'Email already in use'}), 409
 
-            # send authentication email
-            # token = s.dumps(email, salt='email-confirm')
-            # confirm_url = f"{app.config['BASEURL']}/confirm/{token}"
-            # msg = Message("Please Confirm Your Email", recipients=[email])
-            # msg.body = f"Please confirm your email by clicking on the following link: {confirm_url}"
-            # mail.send(msg)
+            token = s.dumps(email, salt='email-confirm')
+            confirm_url = f"{app.config['BASEURL']}/session/confirm/{token}"
+            msg = Message("Please Confirm Your Email",
+                          sender=app.config['MAIL_USERNAME'],
+                          recipients=[email])
+            msg.html = render_template('email_verfication.html',
+                                       link=confirm_url,
+                                       username=first_name)
         else:
             confirm = True
-            msg = Message("New Inflencer Added", recipients=[email])
-            msg.body = f"New influencer {data['firstName']} has registered with this email"
-            mail.send(msg)
+            msg = Message("New Inflencer Added",
+                          sender=app.config['MAIL_USERNAME'],
+                          recipients=[email])
+            msg.body = f"New influencer {first_name} has registered with this email"
 
         hashed_password = generate_password_hash(data['password'],
                                                  method='pbkdf2:sha256')
@@ -220,6 +229,14 @@ def create_app(test_config=None):
             "is_email_confirmed": confirm
         }
 
+        try:
+            #send email message
+            mail.send(msg)
+        except Exception as e:
+            print(e)
+            return jsonify({'message': 'Email sending failed'
+                           }), 500    # Email sending failed
+
         # Save user data to MongoDB
         Influencer(**user_data).save()
 
@@ -245,11 +262,10 @@ def create_app(test_config=None):
             email = s.loads(token, salt='email-confirm',
                             max_age=3600)    # Token expires after 1 hour
             user = Influencer.objects(influencer_email=email).first()
-            if user and not user['confirmed']:
+            if user and not user.is_email_confirmed:
                 user.update(set__is_email_confirmed=True)
                 return jsonify(message="Email confirmed successfully"), 200
-            return jsonify(
-                message="Email already confirmed or token expired"), 400
+            return jsonify(message="Email already confirmed"), 200
         except SignatureExpired:
             return jsonify(message="The confirmation link has expired."), 400
 
@@ -328,6 +344,9 @@ def create_app(test_config=None):
 
         if not user:
             return jsonify({'error': 'Email or promocode not found'}), 404
+
+        if not user.is_email_confirmed:
+            return jsonify({'error': 'Email not confirmed'}), 400
 
         # check password
         if not check_password_hash(user.password, password):
@@ -610,10 +629,10 @@ def create_app(test_config=None):
 
     # Forgot password endpoint
     @app.route('/forgot_password', methods=['POST'])
-    @validate_json('influencer_email')
+    @validate_json('email')
     def forgot_password():
         data = request.get_json()
-        influencer_email = data.get('influencer_email')
+        influencer_email = data.get('email')
 
         # Check if user exists
         user = Influencer.objects(influencer_email=influencer_email).first()
@@ -631,7 +650,7 @@ def create_app(test_config=None):
         # msg.body = f'Your link to reset your password is {link}'
         msg.html = render_template('email_template.html',
                                    link=link,
-                                   username="Test")
+                                   username=user.first_name)
         try:
             mail.send(msg)
             return jsonify({'message': 'Email Sent'
@@ -648,7 +667,7 @@ def create_app(test_config=None):
             email = s.loads(token, salt='email-reset',
                             max_age=1800)    # Token is valid for 30 min
         except SignatureExpired:
-            return jsonify({'message': 'Token Expired'}), 404
+            return jsonify({'message': 'Token Expired'}), 400
 
         if request.method == 'POST':
             data = request.get_json()
@@ -669,7 +688,14 @@ def create_app(test_config=None):
         if not influencer_name:
             return jsonify({'message': 'Influencer name is required'}), 400
 
-        products_list = get_all_products_mongodb(search_term)
+        influencer = Influencer.objects(influencer_name=influencer_name).first()
+        if not influencer:
+            return jsonify({'message': 'Influencer not found'}), 404
+
+        products_list = get_all_products_mongodb(
+            influencer,
+            search_term,
+        )
 
         return jsonify({'products': products_list}), 200
 
@@ -698,11 +724,26 @@ def create_app(test_config=None):
         search_term = data.get('search', '')    # TODO: 这个search_term是用来干什么的？
         role = data.get('role')
         influencer_name = data.get('influencer_name')
+
+        influencer = Influencer.objects(influencer_name=influencer_name).first()
+        if not influencer:
+            return jsonify({'message': 'Influencer not found'}), 404
+
+        for order in influencer.orders:
+            order_details = {
+                'Financial Status': order.order.displayFinancialStatus,
+                'paid_at': order.order.createdAt,
+                'fullfillment_status': order.order.displayFulfillmentStatus,
+                'closed_at': order.order.closedAt,
+                'Commission amount': order.order_commission_fee,
+            }
+
         promocode = None
         if role != 'admin':
             promocode = get_promocode(influencer_name=influencer_name)
 
         try:
+
             orderslist = getOrdersFromMongoDB(promocode=promocode)
             datalist = orderslist.to_dict(orient='records')
             return jsonify({'orders': datalist}), 200

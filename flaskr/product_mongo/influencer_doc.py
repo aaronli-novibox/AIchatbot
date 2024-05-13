@@ -37,6 +37,11 @@ class Interest(EmbeddedDocument):
 # class Audience(EmbeddedDocument):
 
 
+class OrderInfo(EmbeddedDocument):
+    order = ReferenceField(Order)
+    order_commission_fee = DecimalField(default=0)
+
+
 # novi box自建数据库，shopify没有的
 class Influencer(Document):
 
@@ -72,32 +77,38 @@ class Influencer(Document):
     avatar = BinaryField()    # BINARY DATA
     role = StringField()
 
-    orders = ListField(ReferenceField(Order), default=[])
+    orders = ListField(EmbeddedDocumentField(OrderInfo), default=[])
 
     order_nums = DecimalField(default=0)    # 订单中商品的数量
     total_commission = DecimalField(default=0)    # 总佣金
 
     is_email_confirmed = BooleanField()
 
+    # 来一笔新订单，更新influencer的信息，webhook
     def append_order(self, order):
 
-        self.orders.append(order)
+        order_info = OrderInfo(order=order).save()
 
-        for li in order.lineitem:
+        self.orders.append(order_info)
 
-            # 增加class中的order_nums
-            self.order_nums += li.quantity
+        if order.financial_status != "refunded":
 
-            # 找到对应的product
-            product_details = self.find_product(li.product.id)
+            for li in order.lineitem:
 
-            if product_details:
-                if product_details.product_contract_start <= order.created_at and product_details.product_contract_end >= order.created_at:
+                # 增加class中的order_nums
+                self.order_nums += li.lineitem_quantity
 
-                    # 增加class中的total_commission
-                    self.total_commission += (
+                # 找到对应的product
+                product_details = self.find_product(li.product.id)
+
+                if product_details and product_details.product_contract_start <= order.created_at and product_details.product_contract_end >= order.created_at:
+
+                    order_info.order_commission_fee += (
                         float(product_details.commission.replace('%', '')) /
                         100) * li.lineitem_quantity * li.lineitem_price
+
+                    # 增加class中的total_commission
+                    self.total_commission += order_info.order_commission_fee
 
                     # 如果对应的commission_fee为0，那么就计算commission_fee？ 这里实在没看懂
                     if product_details.commission_fee == 0:
@@ -107,12 +118,32 @@ class Influencer(Document):
 
                     product_details.save()
 
+                else:
+                    order_info.order_commission_fee += 0.08 * li.lineitem_quantity * li.lineitem_price
+
+                    # 增加class中的total_commission
+                    self.total_commission += order_info.order_commission_fee
+
+                    # 如果对应的commission_fee为0，那么就计算commission_fee？ 这里实在没看懂
+                    if product_details.commission_fee == 0:
+                        product_details.commission_fee = 0.08 * li.lineitem_price
+
+                    product_details.save()
+
+        order_info.save()
         self.save()
 
     def find_product(self, product_id):
 
         for ip in self.product:
             if ip.product and ip.product.id == product_id:
+                return ip
+        return None
+
+    def find_product_by_shopifyid(self, product_id):
+
+        for ip in self.product:
+            if ip.product and ip.product.shopify_id == product_id:
                 return ip
         return None
 

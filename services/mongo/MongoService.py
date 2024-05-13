@@ -58,10 +58,10 @@ def search_influencerList(search=''):
                 'product')    # 排除 '_id' 和 'password' 字段
     else:
         # 没有搜索词则返回所有影响者，并排除特定字段
-        influencers = Influencer.objects.exclude('id', 'password', 'orders',
-                                                 'product')
+        influencers = Influencer.objects().exclude('id', 'password', 'orders',
+                                                   'product')
 
-    return [inflo.to_mongo().to_dict() for inflo in influencers]
+    return [influ.to_mongo().to_dict() for influ in influencers]
 
 
 def get_promocode(influencer_name=''):
@@ -348,39 +348,17 @@ def get_signed_Products(search_term=''):
 
 
 # 获取所有products（products 这个列表）
-def get_all_products_mongodb(search_term=''):
-    # Get all products
-    # products_collection = g.db['test2']["products"]
-    # if search_term:
-    #     regex_pattern = f".*{search_term}.*"    # Create a regex pattern for fuzzy search
-    #     products = products_collection.find(
-    #         {"title": {
-    #             "$regex": regex_pattern,
-    #             "$options": "i"
-    #         }}, {'_id': 0})
-    # else:
-    #     products = products_collection.find({}, {'_id': 0})
-    # products = list(products)
-    # for product in products:
-    #     product['commission_rate'] = "8%"
+def get_all_products_mongodb(influencer_instance, search_term=''):
 
     # Get all products
     if search_term:
+
         regex_pattern = f".*{search_term}.*"
-        # 使用 MongoEngine 进行模糊搜索和不区分大小写的匹配
-        products = Product.objects(title__icontains=regex_pattern).only(
-            'title',
-            'shopify_id',
-            'description',
-            'featuredImage',
-            'onlineStoreUrl',
-            'priceRangeV2',
-            'tags',
-            'productType',
-        ).exclude('id')
-    else:
-        # 获取所有产品并排除 '_id' 字段
-        products = Product.objects.only(
+        # 使用 MongoEngine 进行模糊搜索并确保产品状态为 "active"
+        products = Product.objects(
+            Q(title__iregex=regex_pattern) &
+            Q(status="ACTIVE")    # 添加产品状态为 "active" 的条件
+        ).only(
             'title',
             'shopify_id',
             'description',
@@ -391,13 +369,30 @@ def get_all_products_mongodb(search_term=''):
             'productType',
         ).exclude('id')
 
-    current_app.logger.info("here")
+    else:
+        products = Product.objects(status="ACTIVE"    # 仅选取状态为 "active" 的产品
+                                  ).only(
+                                      'title',
+                                      'shopify_id',
+                                      'description',
+                                      'featuredImage',
+                                      'onlineStoreUrl',
+                                      'priceRangeV2',
+                                      'tags',
+                                      'productType',
+                                  ).exclude('id')
 
     product_list = []
+
     for product in products:
 
-        product_list.append(product.to_mongo().to_dict())
-        # 将查询结果转换为列表并添加佣金率
-        product_list[-1]['commission_rate'] = "8%"
-    current_app.logger.info("here")
+        prod = influencer_instance.find_product_by_shopifyid(product.shopify_id)
+        product_dict = product.to_mongo().to_dict()
+        if prod:
+            product_dict['commission_rate'] = prod.commission
+        else:
+            product_dict['commission_rate'] = "8%"
+
+        product_list.append(product_dict)
+
     return product_list
