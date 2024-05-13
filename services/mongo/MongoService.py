@@ -363,7 +363,7 @@ def get_all_products_mongodb(influencer_instance, search_term=''):
             'shopify_id',
             'description',
             'featuredImage',
-            'onlineStoreAs anURL',
+            'onlineStoreUrl',
             'priceRangeV2',
             'tags',
             'productType',

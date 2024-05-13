@@ -180,13 +180,13 @@ def create_app(test_config=None):
         else:
             binary_data = None
 
-        # Check if user already exists
-        user = Influencer.objects(influencer_email=email).first()
-        if user:
-            return jsonify({'error': 'Email already in use'}), 409
-
         # send authentication email
         if email != app.config['BDEMAIL']:
+            # Check if user already exists
+            user = Influencer.objects(influencer_email=email).first()
+            if user:
+                return jsonify({'error': 'Email already in use'}), 409
+
             token = s.dumps(email, salt='email-confirm')
             confirm_url = f"{app.config['BASEURL']}/session/confirm/{token}"
             msg = Message("Please Confirm Your Email",
