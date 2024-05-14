@@ -1,6 +1,6 @@
 from .basic_doc import *
 from .mongo_doc import *
-from mongoengine import Document, ValidationError, EmbeddedDocument, LazyReferenceField, EmbeddedDocumentField, ReferenceField, DoesNotExist, StringField, ListField, BinaryField
+from mongoengine import Document, ValidationError, EmbeddedDocument, LazyReferenceField, EmbeddedDocumentField, ReferenceField, DoesNotExist, StringField, ListField, BinaryField, DecimalField
 from datetime import datetime
 
 
@@ -8,10 +8,15 @@ class InfluencerProduct(EmbeddedDocument):
 
     product = ReferenceField(Product)
     commission = StringField(default="8%")
+    # 好像不需要这个commission fee （from yamin）
     commission_fee = DecimalField(default=0)
     product_contract_start = DateTimeField()
     product_contract_end = DateTimeField()
     video_exposure = StringField()
+
+    def clean(self):
+        if self.product_contract_end < self.product_contract_start:
+            raise ValidationError("product_contract_end must be after product_contract_start")
 
 
 class Platform(EmbeddedDocument):
@@ -84,6 +89,40 @@ class Influencer(Document):
 
     is_email_confirmed = BooleanField()
 
+    def get_orderlist(self):
+        all_orders = self.orders
+        orderlist = []
+        for order_info in all_orders:
+            order = order_info.order  # Ensure OrderInfo has a reference to Order
+            for li in order.lineitem:  # Ensure Order has a list of LineItem
+                product_order = {}  # Order per product
+                product_order['Name'] = li.lineitem_name
+                product_order['ID'] = li.lineitem_sku
+                product_order['Unit Price'] = li.lineitem_price
+                product_order['Financial Status'] = order.displayFinancialStatus
+                product_order['Paid at'] = order.processedAt
+                product_order['Fulfilled at'] = order.closedAt
+                product_order['Purchased'] = li.lineitem_quantity
+                product_order['Total Price'] = li.lineitem_quantity * li.lineitem_price
+
+                # Commission calculation
+                product_details = self.find_product(li.product.id)
+                if product_details and product_details.product_contract_start <= order.createdAt and product_details.product_contract_end >= order.createdAt:
+                    product_order['Commission Rate'] = product_details.commission
+                    try:
+                        product_order['Commissions'] = float(product_details.commission.replace('%', '')) / 100 * li.lineitem_price * li.lineitem_quantity
+                    except ValueError:
+                        print("Cannot find the commission")
+                        product_order['Commission Rate'] = '8%'
+                        product_order['Commissions'] = 0.08 * li.lineitem_quantity * li.lineitem_price
+                else:
+                    product_order['Commission Rate'] = '8%'
+                    product_order['Commissions'] = 0.08 * li.lineitem_quantity * li.lineitem_price
+
+                orderlist.append(product_order)
+
+        return orderlist
+
     # 来一笔新订单，更新influencer的信息，webhook
     def append_order(self, order):
 
@@ -91,14 +130,14 @@ class Influencer(Document):
 
         self.orders.append(order_info)
 
-        if order.financial_status != "refunded":
+        if order.displayFinancialStatus != "PAID":
 
             for li in order.lineitem:
 
-                # 增加class中的order_nums
-                self.order_nums += li.lineitem_quantity
+                # 增加class中的order_nums (好像也不需要（from yamin)）
+                # self.order_nums += li.lineitem_quantity
 
-                # 找到对应的product
+                # 找到对应的product(签约的)
                 product_details = self.find_product(li.product.id)
 
                 if product_details and product_details.product_contract_start <= order.created_at and product_details.product_contract_end >= order.created_at:

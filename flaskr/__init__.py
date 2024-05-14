@@ -241,6 +241,27 @@ def create_app(test_config=None):
         Influencer(**user_data).save()
 
         return jsonify({'message': 'Registration successful'}), 201
+    
+    @app.route('/resend', methods=['POST'])
+    def resend_verification_email(token):
+        data = request.form
+        email = data['email']
+        first_name = data['firstName']
+        token = s.dumps(email, salt='email-confirm')
+        confirm_url = f"{app.config['BASEURL']}/session/confirm/{token}"
+        msg = Message("Please Confirm Your Email",
+                        sender=app.config['MAIL_USERNAME'],
+                        recipients=[email])
+        msg.html = render_template('email_verfication.html',
+                                    link=confirm_url,
+                                    username=first_name)
+        try:
+            mail.send(msg)
+            return jsonify({'message': 'Reset Email successful'}), 201
+        except Exception as e:
+            print(e)
+            return jsonify({'message': 'Email sending failed'
+                           }), 500 
 
     @app.route('/get_profile_photo/<email>', methods=['GET'])
     def get_profile_photo(email):
@@ -337,6 +358,7 @@ def create_app(test_config=None):
         data = request.get_json()
         influencer_identifier = data.get('email') or data.get('promocode')
         password = data.get('password')
+        print(password)
 
         user = Influencer.objects(
             Q(influencer_email=influencer_identifier) |
