@@ -86,16 +86,6 @@
             padding-top: 20px;
         }
     </style>
-<script>
-        function loadBase64Image() {
-            fetch('001.txt')
-                .then(response => response.text())
-                .then(data => {
-                    document.getElementById('logo').src = 'data:image/png;base64,' + data;
-                })
-                .catch(error => console.error('Error loading the base64 image:', error));
-        }
-    </script>
 </head>
 <body onload="loadBase64Image()">
 <div class="container">
@@ -103,7 +93,9 @@
         <img src="https://thenovibox.com/cdn/shop/files/logo.png" alt="Novibox Logo" width="160">
     </div>
     <div class="logo">
-        <img id="logo" alt="Novibox Logo" width="80">
+        <div class="logo">
+            <img src="https://raw.githubusercontent.com/lemonshark05/iCon/main/email.png" alt="Logo" width="80">
+        </div>
     </div>
     <h2 class="info-text">Hi {{username}}</h2>
     <p class="info-text1">We received a registeration request for your <strong>NOVI BOX</strong> account. </p>
