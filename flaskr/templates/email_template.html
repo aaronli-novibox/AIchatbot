@@ -6,7 +6,7 @@
     <title>Password Reset Request</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Lucida Sans Unicode', 'Lucida Grande', sans-serif;
             margin: 0;
             padding: 0;
             color: #333;
@@ -16,21 +16,25 @@
             width: 100%;
             max-width: 600px;
             margin: 20px auto;
-            padding: 20px;
-            background-color: #ffffff;
+            background-color: #fffcf5;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
         }
         .header, .footer {
             text-align: center;
             padding-bottom: 10px;
+            margin-top: 20px;
             margin-bottom: 20px;
         }
         .header {
-            border-bottom: 2px solid #805bac; /* Purple color for the line */
+            border-bottom: 2px solid #b3ed23; /* color for the line */
+        }
+        .logo {
+            text-align: center;
         }
         .footer {
             font-size: 12px;
-            color: #666;
+            color: #333; /* footer text color changed to black */
             border-top: 1px solid #eee;
             padding-top: 10px;
         }
@@ -39,7 +43,7 @@
             width: fit-content;
             margin: 20px auto;
             padding: 10px 20px;
-            background-color: #805bac; /* Purple background */
+            background-color: #b3ed23; /* button background */
             color: white;
             text-decoration: none;
             font-weight: bold;
@@ -47,28 +51,75 @@
             text-align: center;
         }
         .button:hover {
-            background-color: #6d489c; /* Darker purple on hover */
+            background-color: #9ac123; /* Darker green on hover */
+        }
+        .info-text1 {
+            text-align: center;
+            margin-top: 20px;
+            max-width: 400px; /* Adjusting the width for shorter lines */
+            margin-left: auto;
+            margin-right: auto;
         }
         .info-text {
             text-align: center;
-            margin-top: 20px;
+            margin-top: 15px;
+            max-width: 400px; /* Adjusting the width for shorter lines */
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .info-section {
+            background-color: #6c7bff;
+            color: white;
+            text-align: center;
+            padding: 20px 20px 40px; /* Extra padding at bottom to ensure it stands out */
+        }
+        .info-section p {
+            margin: 10px 0;
+            max-width: 320px; /* Adjusting the width for shorter lines */
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .info-section .footer {
+            border-top: none;
+            color: black; /* footer text color changed to black */
+            margin: 20px 0 0;
+            padding-top: 20px;
         }
     </style>
+    <script>
+        function loadBase64Image() {
+            fetch('001.txt')
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('logo').src = 'data:image/png;base64,' + data;
+                })
+                .catch(error => console.error('Error loading the base64 image:', error));
+        }
+    </script>
 </head>
-<body>
-<div class="container">
-    <div class="header">
-        <img src="https://thenovibox.com/cdn/shop/files/logo.png" alt="Novibox Logo" width="120">
+<body onload="loadBase64Image()">
+    <div class="container">
+        <div class="header">
+            <img src="https://thenovibox.com/cdn/shop/files/logo.png" alt="Novibox Logo" width="160">
+        </div>
+        <div class="logo">
+            <img id="logo" alt="Novibox Logo" width="80">
+        </div>
+        <h2 class="info-text">Hi {{username}}</h2>
+        <p class="info-text1">We received a request to reset your password.</p>
+        <br>
+        <p class="info-text1">Please click the link below to reset your password:</p>
+        <a href="{{ link }}" class="button">Reset Password</a>
+        <div class="info-section">
+            <p class="info-text"><strong>This link expires in 30 minutes.</strong></p>
+            <p class="info-text">If you did not request a password reset, please ignore this email.</p>
+            <br>
+            <p class="info-text">For your security, do not share this email with anyone.</p>
+            <div class="footer">
+                <p>NOVIBOX Inc.</p>
+                <p>Visit our <a href="https://thenovibox.com/" style="color: black;">website</a> for more updates and support.</p>
+            </div>
+        </div>
     </div>
-    <h1>Hi {{username}},</h1>
-    <p class="info-text">We received a request to reset your password for your Novibox account. Please click the button below to securely reset your password.</p>
-    <a href="{{ link }}" class="button">Reset Password</a>
-    <p class="info-text"><strong>This link expires in 30 minutes.</strong> If you did not request a password reset, please ignore this email.</p>
-    <p class="info-text">For your security, do not share this email with anyone.</p>
-    <div class="footer">
-        <p>Novibox Inc.</p>
-        <p>Visit our <a href="https://thenovibox.com/">website</a> for more updates and support.</p>
-    </div>
-</div>
 </body>
 </html>
