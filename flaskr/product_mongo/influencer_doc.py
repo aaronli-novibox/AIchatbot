@@ -91,7 +91,7 @@ class Influencer(Document):
 
     is_email_confirmed = BooleanField()
 
-    def get_orderlist(self):
+    def get_orderlist(self, search_term = ''):
         all_orders = self.orders
         orderlist = []
         for order_info in all_orders:
@@ -123,7 +123,10 @@ class Influencer(Document):
                     product_order['Commission Rate'] = '8%'
                     product_order['Commissions'] = 0.08 * li.lineitem_quantity * li.lineitem_price
 
-                orderlist.append(product_order)
+                normalized_search_term = search_term.strip().lower()
+                if not normalized_search_term or normalized_search_term in product_order[
+                        'Name'].lower():
+                    orderlist.append(product_order)
 
         return orderlist
 
@@ -138,7 +141,7 @@ class Influencer(Document):
 
         #     for li in order.lineitem:
 
-        #         # 增加class中的order_nums (好像也不需要（from yamin)）
+        #         # 增加class中的order_nums
         #         self.order_nums += li.lineitem_quantity
 
         #         # 找到对应的product(签约的)

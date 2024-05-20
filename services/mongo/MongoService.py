@@ -338,7 +338,6 @@ def get_signed_Products(search_term=''):
     #     create_time = datetime.strptime(create_time , '%Y-%m-%d')
 
     #     if result['status'] and create_time > datetime.strptime(result['start_time'], '%m-%d-%Y') and create_time < datetime.strptime(result['end_time'], '%m-%d-%Y'):
-    #         #很奇怪，price是从order里获取的。如果同一个商品的不同order的不同price那怎么办
     #         result['earnings_per_product'] = float(result['commission_rate'].replace('%', ''))/100 * price
     #     else:
     #         result['earnings_per_product'] =  price * 0.08

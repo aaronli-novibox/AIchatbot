@@ -389,7 +389,9 @@ def create_app(test_config=None):
         data = request.get_json()
         influencer_identifier = data.get('email') or data.get('promocode')
         password = data.get('password')
-        print(password)
+        
+        if influencer_identifier == app.config['BDEMAIL']:
+            return jsonify({'error': 'Please use promocode to log'}), 415
 
         user = Influencer.objects(
             Q(influencer_email=influencer_identifier) |
@@ -577,7 +579,6 @@ def create_app(test_config=None):
             return jsonify({'message': 'Influencer name is required'}), 400
 
         role = data.get('role')    # 这是用来干什么的？
-        search = data.get('search')    # 这是用来干什么的？
 
         influencer_data = Influencer.objects(
             influencer_name=influencer_name).first()
@@ -591,7 +592,7 @@ def create_app(test_config=None):
             promocode = influencer_data.promo_code
 
             product_details = []
-            for influencer_product in influencer_data.product:
+            for influencer_product in products_list:
                 product = influencer_product.product
                 if product:
                     # 此时product是一个Product对象的引用，可以直接访问其字段
@@ -602,7 +603,7 @@ def create_app(test_config=None):
                             influencer_product.commission,
                         'status':
                             True if product.product_contract_end
-                            > datetime.now() else False,
+                            > datetime.now() and product.product_contract_start < datetime.now() else False,
                         "start_time":
                             influencer_product.product_contract_start.strftime(
                                 "%Y-%m-%d")
@@ -781,7 +782,7 @@ def create_app(test_config=None):
         if not influencer:
             return jsonify({'message': 'Influencer not found'}), 404
 
-        return jsonify({'data': influencer.get_orderlist()}), 200
+        return jsonify({'data': influencer.get_orderlist(search_term)}), 200
 
     # @app.route('/products')
     # def getProductsInfoFromMongoDB():
