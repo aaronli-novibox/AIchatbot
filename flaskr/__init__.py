@@ -24,8 +24,8 @@ from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 
 from mongoengine import connect, Q
-from .product_mongo.influencer_doc import *
-from .product_mongo.mongo_doc import *
+from flaskr.product_mongo.influencer_doc import *
+from flaskr.product_mongo.mongo_doc import *
 import re
 import hmac
 import hashlib
@@ -391,7 +391,7 @@ def create_app(test_config=None):
         password = data.get('password')
         
         if influencer_identifier == app.config['BDEMAIL']:
-            return jsonify({'error': 'Please use promocode to log'}), 415
+            return jsonify({'error': 'Please use Promo Code to log'}), 415
 
         user = Influencer.objects(
             Q(influencer_email=influencer_identifier) |
@@ -774,7 +774,7 @@ def create_app(test_config=None):
     @app.route('/orderlist', methods=['POST'])
     def get_orderlist():
         data = request.get_json()
-        search_term = data.get('search', '')    # TODO: 这个search_term是用来干什么的？
+        search_term = data.get('search')    # TODO: 这个search_term是用来干什么的？
         role = data.get('role')
         influencer_name = data.get('influencer_name')
 
