@@ -1,5 +1,5 @@
 import os
-from flask import Flask, abort, send_file
+from flask import Flask, abort, send_file, g, request, redirect, jsonify, render_template
 from services.mongo import *
 from services.aichatbot.AIchatBotService import *
 from services.mongo.MongoService import *
@@ -17,7 +17,6 @@ import io
 import jwt
 import base64
 
-from flask import g, request, redirect, jsonify, render_template
 from flaskr.shp import *
 from flaskr.oai import *
 from flaskr.db import get_mongo_db, close_db
@@ -30,7 +29,7 @@ from .product_mongo.mongo_doc import *
 import re
 import hmac
 import hashlib
-
+from urllib.parse import urlencode
 
 def load_model() -> FlagModel:
     # Load the model
@@ -189,7 +188,7 @@ def create_app(test_config=None):
 
             token = s.dumps(email, salt='email-confirm')
             confirm_url = f"{app.config['BASEURL']}/session/confirm/{token}"
-            msg = Message("Please Confirm Your Email",
+            msg = Message("Please Verify Your Email",
                           sender=app.config['MAIL_USERNAME'],
                           recipients=[email])
             msg.html = render_template('email_verfication.html',
@@ -218,7 +217,9 @@ def create_app(test_config=None):
             "role": 'influencer',
             "age": data.get('age'),
             "country": data.get('country'),
-            "city_state": data.get('cityState'),
+            "state": data.get('state'),
+            "city": data.get('city'),
+            "zipcode": data.get('zipcode'),
             "shipping_address": data.get('shippingAddress'),
             "phone": data.get('phone'),
             "bio": data.get('bio'),
@@ -243,13 +244,13 @@ def create_app(test_config=None):
         return jsonify({'message': 'Registration successful'}), 201
     
     @app.route('/resend', methods=['POST'])
-    def resend_verification_email(token):
-        data = request.form
-        email = data['email']
-        first_name = data['firstName']
+    def resend_verification_email():
+        data = request.get_json()
+        email = data.get('email')
+        first_name = data.get('firstName')
         token = s.dumps(email, salt='email-confirm')
         confirm_url = f"{app.config['BASEURL']}/session/confirm/{token}"
-        msg = Message("Please Confirm Your Email",
+        msg = Message("Please Verify Your Email",
                         sender=app.config['MAIL_USERNAME'],
                         recipients=[email])
         msg.html = render_template('email_verfication.html',
@@ -257,7 +258,7 @@ def create_app(test_config=None):
                                     username=first_name)
         try:
             mail.send(msg)
-            return jsonify({'message': 'Reset Email successful'}), 201
+            return jsonify({'message': 'Reset Email successful'}), 200
         except Exception as e:
             print(e)
             return jsonify({'message': 'Email sending failed'
@@ -276,6 +277,36 @@ def create_app(test_config=None):
             )
         else:
             return jsonify({'error': 'No photo found'}), 404
+        
+    @app.route('/generate_social_post_url', methods=['GET'])
+    def generate_social_post_url():
+        platform = request.args.get('platform')
+        email = request.args.get('email')
+        user = Influencer.objects(influencer_email=email).first()
+        promo_code = user.promo_code
+
+        if platform == 'facebook':
+            post_url = 'https://www.facebook.com/stories/create'
+            text_to_copy = f"Special offer just for you! Use promo code:【{promo_code}】for 10% off at thenovibox.com. Click to enjoy exclusive savings!"
+
+        elif platform == 'tiktok':
+            post_url = 'https://www.tiktok.com/creator-center/upload'
+            text_to_copy = f"Hey TikTok! Save 10% with code【{promo_code}】Swipe up to shop at thenovibox.com!"
+
+        elif platform == 'instagram':
+            post_url = 'https://www.instagram.com'
+            text_to_copy = f"Unlock 10% off at thenovibox.com with my code:【{promo_code}】. Dive into the savings! Tap to shop! "
+
+        elif platform == 'twitter':
+            post_url = 'https://twitter.com/intent/tweet?' + urlencode({
+                'text': f'Grab this deal!  Use {promo_code} for 10% off your next purchase at thenovibox.com. Shop now! '
+            })
+            text_to_copy = f"Grab this deal!  Use【{promo_code}】for 10% off your next purchase at thenovibox.com. Shop now! "
+
+        else:
+            return jsonify({'error': 'Unsupported platform'}), 400
+        
+        return jsonify({'url': post_url, 'text': text_to_copy})
 
     @app.route('/confirm/<token>', methods=['GET'])
     def confirm_email(token):
@@ -739,7 +770,6 @@ def create_app(test_config=None):
 
         return jsonify({'products': products_list}), 200
 
-    # TODO: 还没来得及看，这个函数是用来干什么的？
     @app.route('/orderlist', methods=['POST'])
     def get_orderlist():
         data = request.get_json()
@@ -751,26 +781,7 @@ def create_app(test_config=None):
         if not influencer:
             return jsonify({'message': 'Influencer not found'}), 404
 
-        for order in influencer.orders:
-            order_details = {
-                'Financial Status': order.order.displayFinancialStatus,
-                'paid_at': order.order.createdAt,
-                'fullfillment_status': order.order.displayFulfillmentStatus,
-                'closed_at': order.order.closedAt,
-                'Commission amount': order.order_commission_fee,
-            }
-
-        promocode = None
-        if role != 'admin':
-            promocode = get_promocode(influencer_name=influencer_name)
-
-        try:
-
-            orderslist = getOrdersFromMongoDB(promocode=promocode)
-            datalist = orderslist.to_dict(orient='records')
-            return jsonify({'orders': datalist}), 200
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+        return jsonify({'data': influencer.get_orderlist()}), 200
 
     # @app.route('/products')
     # def getProductsInfoFromMongoDB():

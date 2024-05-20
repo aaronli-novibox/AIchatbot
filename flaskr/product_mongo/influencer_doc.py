@@ -66,8 +66,10 @@ class Influencer(Document):
     middle_name = StringField()
     last_name = StringField()
     country = StringField()
-    city_state = StringField()
+    state = StringField()
+    city = StringField()
     age = StringField()
+    zipcode = StringField()
     audience = ListField(StringField(), default=[])
     phone = StringField()
     shipping_address = StringField()
@@ -104,6 +106,8 @@ class Influencer(Document):
                 product_order['Fulfilled at'] = order.closedAt
                 product_order['Purchased'] = li.lineitem_quantity
                 product_order['Total Price'] = li.lineitem_quantity * li.lineitem_price
+                product_order['onlineStoreUrl'] = li.product.onlineStoreUrl
+                product_order['featuredImage'] = li.product.featuredImage
 
                 # Commission calculation
                 product_details = self.find_product(li.product.id)
