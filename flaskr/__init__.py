@@ -264,10 +264,10 @@ def create_app(test_config=None):
             return jsonify({'message': 'Email sending failed'
                            }), 500 
 
-    @app.route('/get_profile_photo/<email>', methods=['GET'])
-    def get_profile_photo(email):
+    @app.route('/get_profile_photo/<influencer_name>', methods=['GET'])
+    def get_profile_photo(influencer_name):
 
-        user = Influencer.objects(influencer_email=email).first()
+        user = Influencer.objects(influencer_name=influencer_name).first()
 
         if user and user['avatar']:
             return send_file(
@@ -281,8 +281,9 @@ def create_app(test_config=None):
     @app.route('/generate_social_post_url', methods=['GET'])
     def generate_social_post_url():
         platform = request.args.get('platform')
-        email = request.args.get('email')
-        user = Influencer.objects(influencer_email=email).first()
+        user_name = request.args.get('influencer_name')
+        print(user_name)
+        user = Influencer.objects(influencer_name=user_name).first()
         promo_code = user.promo_code
 
         if platform == 'facebook':
@@ -453,8 +454,8 @@ def create_app(test_config=None):
     def check_email():
         data = request.get_json()
         email = data.get('email')
-        email = Influencer.objects(influencer_email=email).first()
-        if email:
+        user = Influencer.objects(influencer_email=email).first()
+        if user:
             return jsonify({'isUnique': False}), 200
         return jsonify({'isUnique': True}), 200
 
