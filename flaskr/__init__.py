@@ -324,13 +324,13 @@ def create_app(test_config=None):
     @app.route('/update_influencer', methods=['POST'])
     def update_userinfo():
         data = request.json
-        email = data.get('email')
-        # file = request.files.get('avatar')
+        influencer_name = data.get('influencer_name')
 
-        if not email:
-            return jsonify({'error': 'Missing email field'}), 400
+        if not influencer_name:
+            return jsonify({'error': 'Missing influencer_name field'}), 400
 
-        influencer = Influencer.objects(influencer_email=email).first()
+        influencer = Influencer.objects(influencer_name=influencer_name).first()
+
         if not influencer:
             return jsonify({'error': 'Influencer not found'}), 404
 
