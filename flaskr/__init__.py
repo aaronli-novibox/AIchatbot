@@ -214,7 +214,7 @@ def create_app(test_config=None):
             "last_name": data.get('lastName'),
             "middle_name": data.get('middleName'),
             "password": hashed_password,
-            "role": 'influencer',
+            "role": 'customer',
             "age": data.get('age'),
             "country": data.get('country'),
             "state": data.get('state'),
@@ -835,6 +835,10 @@ def create_app(test_config=None):
 
         if role == 'admin':
             influencers = search_influencerList(search=search_term)
+            for influencer in influencers:
+                if 'avatar' in influencer:
+                    influencer['avatar'] = base64.b64encode(influencer['avatar']).decode('utf-8')
+
             return jsonify({'influencers': influencers}), 200
         else:
             return jsonify({'msg': 'Not admin account'}), 200
