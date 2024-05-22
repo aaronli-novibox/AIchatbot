@@ -362,7 +362,7 @@ def create_app(test_config=None):
                          influencer.get('is_email_confirmed')),
         }
 
-        update_result = Influencer.objects(influencer_email=email).update_one(
+        update_result = Influencer.objects(influencer_name=influencer_name).update_one(
             **updated_data)
 
         # 检查是否有文档被更新
@@ -838,6 +838,30 @@ def create_app(test_config=None):
             return jsonify({'influencers': influencers}), 200
         else:
             return jsonify({'msg': 'Not admin account'}), 200
+
+    @app.route('/influencer', methods=['POST'])
+    def get_influencer_info():
+        data = request.get_json()
+        influencer_name = data.get('influencer_name')
+
+        user = Influencer.objects(influencer_name=influencer_name).first()
+        if not user:
+            return jsonify({'message': 'Influencer not found'}), 404
+
+        # Convert MongoDB documents to a JSON serializable format
+        user_data = {}
+        for key, value in user.to_mongo().items():
+            if isinstance(value, ObjectId):
+                user_data[key] = str(value)
+            elif isinstance(value, bytes):
+                # Convert bytes to Base64 string if needed
+                user_data[key] = base64.b64encode(value).decode('utf-8')
+            elif key in ['collaboration', 'audience', 'niche', 'interest']:
+                # Parse JSON strings into JSON objects
+                user_data[key] = safe_json_loads(value)
+            else:
+                user_data[key] = value
+        return jsonify({'data': user_data}), 200
 
     #########################################################
     #################### aichatbot service ##################
