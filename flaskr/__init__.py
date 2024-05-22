@@ -695,6 +695,9 @@ def create_app(test_config=None):
         if not user:
             return jsonify({'error': 'User not found'}), 404
 
+        if influencer_email == app.config['BDEMAIL']:
+            return jsonify({'error': 'Please contact the administrator to change the password!'}), 415
+
         token = s.dumps(influencer_email, salt='email-reset')
         msg = Message('Password Reset Request',
                       sender=app.config['MAIL_USERNAME'],
