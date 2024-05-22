@@ -772,6 +772,22 @@ def create_app(test_config=None):
 
         return jsonify({'products': products_list}), 200
 
+    # TODO: need to confirm the logic
+    @app.route('/allproducts', methods=['POST'])
+    @validate_json('influencer_name', 'role')
+    def get_bd_influencers_products():
+        data = request.get_json()
+        role = data.get('role')
+        search_term = data.get('search')  # 暂时改为不设置默认值，有问题指正我
+
+        if not role:
+            return jsonify({'message': 'Role name is required'}), 400
+
+        # need to confirm the details
+        products_list = get_all_influencer_products(search_term)
+
+        return jsonify({'products': products_list}), 200
+
     @app.route('/orderlist', methods=['POST'])
     def get_orderlist():
         data = request.get_json()

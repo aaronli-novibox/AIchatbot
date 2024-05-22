@@ -245,6 +245,32 @@ def insertInfluencerData(influencer_data):
         print("Data inserted successfully.")
         return 1
 
+def get_all_influencer_products(search_term=''):
+    # Retrieve all influencers
+    all_influencers = Influencer.objects()
+    all_products = []
+
+    for influencer in all_influencers:
+        signed_products = influencer.product
+
+        for product in signed_products:
+            # Prepare the product dictionary
+            product_info = {
+                'title': product.product.title,
+                'commission_rate': product.commission,
+                'product_shopify_id': product.product.shopify_id,
+                'start_time': product.product_contract_start.strftime("%Y-%m-%d") if product.product_contract_start else "N/A",
+                'end_time': product.product_contract_end.strftime("%Y-%m-%d") if product.product_contract_end else "N/A",
+                'status': True if product.product_contract_end > datetime.now() else False,
+                'featuredImage': product.product.featuredImage,
+                'onlineStoreUrl': product.product.onlineStoreUrl,
+            }
+
+            normalized_search_term = search_term.strip().lower()
+            if not normalized_search_term or normalized_search_term in product_info['title'].lower():
+                all_products.append(product_info)
+
+    return all_products
 
 def getInflencerProducts(influencer_name, search_term=''):
 
