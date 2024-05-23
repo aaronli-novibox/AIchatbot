@@ -217,7 +217,7 @@ class Influencer(Document):
             product_data = {
                 'product_name': product.title,
                 'unitsSold': quantity,
-                'revenue': float(revenue),  # Ensure revenue is float
+                'revenue': revenue,  # Ensure revenue is float
                 'imgUrl': product.featuredImage.url if product.featuredImage else None,
                 'onlineStoreUrl': product.onlineStoreUrl,
             }
@@ -248,7 +248,7 @@ class Influencer(Document):
 
         return {
             'total_quantity': total_quantity,
-            'total_revenue': float(total_revenue)  # Convert Decimal to float for JSON serialization
+            'total_revenue': total_revenue  # Convert Decimal to float for JSON serialization
         }
 
 def get_start_and_end_dates(month):
