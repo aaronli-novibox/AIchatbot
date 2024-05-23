@@ -437,6 +437,10 @@ def create_app(test_config=None):
             return {key: serialize_object(value) for key, value in obj.items()}
         if isinstance(obj, list):
             return [serialize_object(item) for item in obj]
+        if isinstance(obj, Image):
+            return {
+                'url': obj.url
+            }
         return obj
 
     @app.route('/checkusername', methods=['POST'])
@@ -704,15 +708,8 @@ def create_app(test_config=None):
             return jsonify({'message': 'Influencer not found'}), 404
 
         # Filter products based on search_term if provided
-        products_list = []
-        for product in influencer.product:
-            product_info = product.to_mongo().to_dict()
-            if not search_term or search_term.lower() in product_info['title'].lower():
-                products_list.append(product_info)
-
-        # Serialize the products list
-        serialized_products = serialize_object(products_list)
-        print(serialized_products)
+        products_list = getInflencerProducts(influencer_name, search_term)
+        serialized_products = [serialize_object(product) for product in products_list]
 
         return jsonify({'products': serialized_products}), 200
 
