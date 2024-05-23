@@ -1,14 +1,13 @@
 from .basic_doc import *
 from .mongo_doc import *
 from mongoengine import Document, ValidationError, EmbeddedDocument, LazyReferenceField, EmbeddedDocumentField, ReferenceField, DoesNotExist, StringField, ListField, BinaryField, DecimalField
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class InfluencerProduct(EmbeddedDocument):
 
     product = ReferenceField(Product)
     commission = StringField(default="8%")
-    # 好像不需要这个commission fee （from yamin）
     commission_fee = DecimalField(default=0)
     product_contract_start = DateTimeField()
     product_contract_end = DateTimeField()
@@ -137,44 +136,38 @@ class Influencer(Document):
 
         self.orders.append(order_info)
 
-        # if order.displayFinancialStatus != "PAID":
+        if order.displayFinancialStatus == "PAID":
 
-        #     for li in order.lineitem:
+            for li in order.lineitem:
 
-        #         # 增加class中的order_nums
-        #         self.order_nums += li.lineitem_quantity
+                # 增加class中的order_nums
+                self.order_nums += li.lineitem_quantity
 
-        #         # 找到对应的product(签约的)
-        #         product_details = self.find_product(li.product.id)
+                # 找到对应的product(签约的)
+                product_details = self.find_product(li.product.id)
 
-        #         if product_details and product_details.product_contract_start <= order.created_at and product_details.product_contract_end >= order.created_at:
+                if product_details and product_details.product_contract_start <= order.created_at and product_details.product_contract_end >= order.created_at:
+                    
+                    li.commission_fee = (float(product_details.commission.replace('%', '')) /
+                        100) * li.lineitem_quantity * li.lineitem_price
+                    
+                    order_info.order_commission_fee += li.commission_fee
 
-        #             order_info.order_commission_fee += (
-        #                 float(product_details.commission.replace('%', '')) /
-        #                 100) * li.lineitem_quantity * li.lineitem_price
+                    # 增加class中的total_commission
+                    self.total_commission += li.commission_fee
 
-        #             # 增加class中的total_commission
-        #             self.total_commission += order_info.order_commission_fee
+                    product_details.save()
 
-        #             # 如果对应的commission_fee为0，那么就计算commission_fee？ 这里实在没看懂
-        #             if product_details.commission_fee == 0:
-        #                 product_details.commission_fee = (
-        #                     float(product_details.commission.replace('%', '')) /
-        #                     100) * li.lineitem_price
+                else:
+                    li.commission_fee = 0.08 * li.lineitem_quantity * li.lineitem_price
 
-        #             product_details.save()
+                    order_info.order_commission_fee += li.commission_fee
+                    # 增加class中的total_commission
+                    self.total_commission += li.commission_fee
 
-        #         else:
-        #             order_info.order_commission_fee += 0.08 * li.lineitem_quantity * li.lineitem_price
+                    product_details.save()
 
-        #             # 增加class中的total_commission
-        #             self.total_commission += order_info.order_commission_fee
-
-        #             # 如果对应的commission_fee为0，那么就计算commission_fee？ 这里实在没看懂
-        #             if product_details.commission_fee == 0:
-        #                 product_details.commission_fee = 0.08 * li.lineitem_price
-
-        #             product_details.save()
+                li.save()
 
         order_info.save()
         self.save()
@@ -192,6 +185,165 @@ class Influencer(Document):
             if ip.product and ip.product.shopify_id == product_id:
                 return ip
         return None
+    
+    def get_top_ten_selling_products(self, month):
+        # Parse the month and get the start and end dates
+        start_date = datetime.strptime(month, "%Y-%m")
+        end_date = start_date + timedelta(days=31)  # This handles month end correctly
+
+        # Aggregate the orders to get the total quantity sold and total price for each product within the specified month
+        pipeline = [
+            {
+                '$match': {
+                    '_id': self.id
+                }
+            },
+            {
+                '$unwind': '$orders'
+            },
+            {
+                '$lookup': {
+                    'from': 'order',
+                    'localField': 'orders.order',
+                    'foreignField': '_id',
+                    'as': 'order_docs'
+                }
+            },
+            {
+                '$unwind': '$order_docs'
+            },
+            {
+                '$match': {
+                    'order_docs.createdAt': {
+                        '$gte': start_date,
+                        '$lt': end_date
+                    }
+                }
+            },
+            {
+                '$unwind': '$order_docs.lineitem'
+            },
+            {
+                '$group': {
+                    '_id': '$order_docs.lineitem.product',
+                    'total_quantity': {
+                        '$sum': '$order_docs.lineitem.lineitem_quantity'
+                    },
+                    'revenue': {
+                        '$sum': {
+                            '$order_docs.lineitem.commission_fee'
+                        }
+                    }
+                }
+            },
+            {
+                '$sort': {
+                    'total_quantity': -1
+                }
+            },
+            {
+                '$limit': 10
+            },
+            {
+                '$lookup': {
+                    'from': 'product',
+                    'localField': '_id',
+                    'foreignField': '_id',
+                    'as': 'product_docs'
+                }
+            },
+            {
+                '$unwind': '$product_docs'
+            },
+            {
+                '$project': {
+                    'product_id': '$_id',
+                    'total_quantity': 1,
+                    'revenue': 1,
+                    'product': '$product_docs'
+                }
+            }
+        ]
+
+        results = list(Influencer.objects.aggregate(pipeline))
+        top_ten_products = []
+        for product_info in results:
+            one_product = {}
+
+            one_product['revenue'] = product_info['revenue']
+            one_product['unitsSold'] = product_info['total_quantity']
+
+            proudct = product_info['product']
+            one_product['product_name'] = proudct['title']
+            one_product['imgUrl'] = proudct['featuredImage'].url
+            one_product['onlineStoreUrl'] = proudct['onlineStoreUrl']
+            
+            product_details = self.find_product(product_info['product_id'])
+            if product_details and product_details.product_contract_start <= start_date and product_details.product_contract_end >= end_date:
+                one_product['commission'] = product_details.commission
+            else:
+                one_product['commission'] = '8%'
+            
+            top_ten_products.append(one_product)
+
+        return top_ten_products
+    
+    def get_last_month_sold_products(self, month):
+        # Parse the month and get the start and end dates
+        start_date = datetime.strptime(month, "%Y-%m")
+        end_date = start_date + timedelta(days=31)  # This handles month end correctly
+
+        # Aggregate the orders to get the total quantity sold and total price for each product within the specified month
+        pipeline = [
+            {
+                '$match': {
+                    '_id': self.id
+                }
+            },
+            {
+                '$unwind': '$orders'
+            },
+            {
+                '$lookup': {
+                    'from': 'order',
+                    'localField': 'orders.order',
+                    'foreignField': '_id',
+                    'as': 'order_docs'
+                }
+            },
+            {
+                '$unwind': '$order_docs'
+            },
+            {
+                '$match': {
+                    'order_docs.createdAt': {
+                        '$gte': start_date,
+                        '$lt': end_date
+                    }
+                }
+            },
+            {
+                '$unwind': '$order_docs.lineitem'
+            },
+            {
+                '$group': {
+                    '_id': None,
+                    'total_quantity': {
+                        '$sum': '$order_docs.lineitem.lineitem_quantity'
+                    },
+                    'total_revenue': {
+                        '$sum': '$order_docs.lineitem.commission_fee'
+                    }
+                }
+            }
+        ]
+
+        results = list(Influencer.objects.aggregate(pipeline))
+        if results:
+            return results[0]
+        else:
+            return {'total_quantity': 0, 'total_revenue': 0}
+
 
 
 # example

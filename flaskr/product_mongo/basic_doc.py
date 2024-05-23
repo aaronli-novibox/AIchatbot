@@ -275,6 +275,7 @@ class LineItem(Document):
     product = LazyReferenceField('Product')
     order = LazyReferenceField('Order')
     variant = LazyReferenceField('ProductVariant')
+    commission_fee = DecimalField(required=True, help_text="The commission fee = price*quantity*commission")
 
 
 

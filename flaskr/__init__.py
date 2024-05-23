@@ -282,7 +282,6 @@ def create_app(test_config=None):
     def generate_social_post_url():
         platform = request.args.get('platform')
         user_name = request.args.get('influencer_name')
-        print(user_name)
         user = Influencer.objects(influencer_name=user_name).first()
         promo_code = user.promo_code
 
@@ -575,112 +574,39 @@ def create_app(test_config=None):
     def get_userbroad():
         data = request.get_json()
         influencer_name = data.get('influencer_name')
-
         if influencer_name is None:
             return jsonify({'message': 'Influencer name is required'}), 400
-
-        role = data.get('role')    # 这是用来干什么的？
-
-        influencer_data = Influencer.objects(
-            influencer_name=influencer_name).first()
-
-        order_nums = 0
-        Total_Commissions = 0
-        last_month_orders = 0    # 上个月的订单数，没有更新
-
-        if influencer_data is not None:
-            products_list = influencer_data.product
-            promocode = influencer_data.promo_code
-
-            product_details = []
-            for influencer_product in products_list:
-                product = influencer_product.product
-                if product:
-                    # 此时product是一个Product对象的引用，可以直接访问其字段
-                    product_info = {
-                        'title':
-                            product.title,
-                        "commission_rate":
-                            influencer_product.commission,
-                        'status':
-                            True if product.product_contract_end
-                            > datetime.now() and product.product_contract_start < datetime.now() else False,
-                        "start_time":
-                            influencer_product.product_contract_start.strftime(
-                                "%Y-%m-%d")
-                            if influencer_product.product_contract_start else
-                            "N/A",
-                        "end_time":
-                            influencer_product.product_contract_end.strftime(
-                                "%Y-%m-%d") if
-                            influencer_product.product_contract_end else "N/A",
-                        "video_exposure":
-                            influencer_product.video_exposure,
-                        'product_shopify_id':
-                            product.product.shopify_id,
-                        'featuredImage':
-                            product.featuredImage,
-                        'onlineStoreUrl':
-                            product.onlineStoreUrl,
-                    }
-                    product_details.append(product_info)
-
-            # 返回order_nums, Total_Commissions, last_month_orders
-            order_nums = influencer_data.order_nums
-            Total_Commissions = influencer_data.total_commission
-
-            # last_month_orders 逻辑需要重新确认
-
-            # 打印或以其他方式处理product_details
-            print(product_details)
-        else:
+        
+        # Check if user exist
+        influencer_data = Influencer.objects.get(
+            influencer_name=influencer_name)
+        if influencer_data is None:
             return jsonify({'error': 'Influencer not found'}), 404
 
-        # order_list = Order.objects(discountCode=promocode)
-
-        # order_list = list(order_list)
-
-        # TODO: 为什么需要product——commission fee这个字段？用来干什么的？
-        # 遍历所有相关订单
-        # for doc in order_list:
-        #     if doc['financial_status'] == "refunded":
-        #         pass
-        #     # 订单创建时间
-        #     create_time = doc['lineitem'][0]['created_at']
-        #     # 解析时间戳字符串,并只选取年月日
-        #     create_time = datetime.strptime(
-        #         create_time, '%Y-%m-%d %H:%M:%S %z').strftime('%Y-%m-%d')
-        #     create_time = datetime.strptime(create_time, '%Y-%m-%d')
-        #     for product in products_list:
-        #         if not product['commission_fee']:
-        #             product['commission_fee'] = 0
-        #         # 看是否在带货列表中且购买日期在签约日期间
-        #         # 这里的逻辑有问题，需要重新确认
-        #         if product['product_sku'] == doc['lineitem'][0][
-        #                 'lineitem_sku'] and create_time > datetime.strptime(
-        #                     product['product_contract_start'],
-        #                     '%m-%d-%Y') and create_time > datetime.strptime(
-        #                         product['product_contract_end'], '%m-%d-%Y'):
-        #             # 如果单个商品的分红值还是0， 就更新，不然就pass
-        #             if product['commission_fee'] == 0:
-        #                 product['commission_fee'] = product['commission'] * doc[
-        #                     'lineitem'][0]['lineitem_price']
-        #             else:
-        #                 pass
-        #             # 增加带货数
-        #             order_nums += doc['lineitem'][0]['lineitem_quantity']
-        #             # 增加总分红数
-        #             Total_Commissions += doc['lineitem'][0]['lineitem_quantity'] * product['commission'] * \
-        #                                  doc['lineitem'][0]['lineitem_price']
+        # role = data.get('role')    # 这是用来干什么的？
+        range = data.get('range')
+        month = data.get('month')
+        
+        # Total earnings in User dashboard
+        total_earnings = influencer_data.total_commission
+        monthly_stats = influencer_data.get_last_month_sold_products(month)
+        last_month_orders = monthly_stats['total_quantity']
+        last_month_earning = monthly_stats['total_revenue']
+        
+        top_products = []
+        for time in range:
+            result = influencer_data.get_top_ten_selling_products(time)
+            top_products.append(dict(time=result))
 
         return jsonify({
             'cards': {
-                'all_orders': order_nums,
-                'last_month_sales': Total_Commissions,
-                'last_month_orders': last_month_orders
+                'total_earnings': total_earnings,
+                'last_month_earning': last_month_earning,
+                'last_month_sold_products': last_month_orders
             },
-            'products': product_details
+            'top_products': top_products
         }), 200
+
 
     # Forgot password endpoint
     @app.route('/forgot_password', methods=['POST'])
