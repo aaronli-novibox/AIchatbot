@@ -230,9 +230,7 @@ class Influencer(Document):
                         '$sum': '$order_docs.lineitem.lineitem_quantity'
                     },
                     'revenue': {
-                        '$sum': {
-                            '$order_docs.lineitem.commission_fee'
-                        }
+                        '$sum': '$order_docs.lineitem.commission_fee'
                     }
                 }
             },
@@ -273,10 +271,10 @@ class Influencer(Document):
             one_product['revenue'] = product_info['revenue']
             one_product['unitsSold'] = product_info['total_quantity']
 
-            proudct = product_info['product']
-            one_product['product_name'] = proudct['title']
-            one_product['imgUrl'] = proudct['featuredImage'].url
-            one_product['onlineStoreUrl'] = proudct['onlineStoreUrl']
+            product = product_info['product']
+            one_product['product_name'] = product['title']
+            one_product['imgUrl'] = product['featuredImage'].url if product['featuredImage'] else None
+            one_product['onlineStoreUrl'] = product['onlineStoreUrl']
             
             product_details = self.find_product(product_info['product_id'])
             if product_details and product_details.product_contract_start <= start_date and product_details.product_contract_end >= end_date:
@@ -287,6 +285,7 @@ class Influencer(Document):
             top_ten_products.append(one_product)
 
         return top_ten_products
+
     
     def get_last_month_sold_products(self, month):
         # Parse the month and get the start and end dates

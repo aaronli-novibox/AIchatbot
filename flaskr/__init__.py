@@ -418,24 +418,26 @@ def create_app(test_config=None):
             algorithm='HS256')
 
         # Convert MongoDB documents to a JSON serializable format
-        user_data = {}
-        for key, value in user.to_mongo().items():
-            if isinstance(value, ObjectId):
-                user_data[key] = str(value)
-            elif isinstance(value, bytes):
-                # Convert bytes to Base64 string if needed
-                user_data[key] = base64.b64encode(value).decode('utf-8')
-            elif key in ['collaboration', 'audience', 'niche', 'interest']:
-                # Parse JSON strings into JSON objects
-                user_data[key] = safe_json_loads(value)
-            else:
-                user_data[key] = value
-        # print(user_data)
+        user_data = serialize_object(user.to_mongo().to_dict())
+        
         return jsonify({
             'message': 'Login successful',
             'user': user_data,
             'token': token
         }), 200
+    
+    def serialize_object(obj):
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, bytes):
+            return base64.b64encode(obj).decode('utf-8')
+        if isinstance(obj, dict):
+            return {key: serialize_object(value) for key, value in obj.items()}
+        if isinstance(obj, list):
+            return [serialize_object(item) for item in obj]
+        return obj
 
     @app.route('/checkusername', methods=['POST'])
     @validate_json('username')
