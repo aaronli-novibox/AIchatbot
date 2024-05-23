@@ -196,10 +196,8 @@ def create_app(test_config=None):
                                        username=first_name)
         else:
             confirm = True
-            msg = Message("New Inflencer Added",
-                          sender=app.config['MAIL_USERNAME'],
-                          recipients=[email])
-            msg.body = f"New influencer {first_name} has registered with this email"
+            msg = None
+            print(f"New user {first_name} has registered with this email")
 
         hashed_password = generate_password_hash(data['password'],
                                                  method='pbkdf2:sha256')
@@ -231,8 +229,11 @@ def create_app(test_config=None):
         }
 
         try:
-            #send email message
-            mail.send(msg)
+            # Send email message only if msg is not None
+            if msg:
+                mail.send(msg)
+            else:
+                return jsonify({'message': 'Registration successful'}), 200
         except Exception as e:
             print(e)
             return jsonify({'message': 'Email sending failed'
@@ -454,7 +455,7 @@ def create_app(test_config=None):
         data = request.get_json()
         email = data.get('email')
         user = Influencer.objects(influencer_email=email).first()
-        if user:
+        if user and email != app.config['BDEMAIL']:
             return jsonify({'isUnique': False}), 200
         return jsonify({'isUnique': True}), 200
 
@@ -619,6 +620,9 @@ def create_app(test_config=None):
         user = Influencer.objects(influencer_email=influencer_email).first()
         if not user:
             return jsonify({'error': 'User not found'}), 404
+
+        if influencer_email == app.config['BDEMAIL']:
+            return jsonify({'error': 'Please contact the administrator to change the password!'}), 415
 
         token = s.dumps(influencer_email, salt='email-reset')
         msg = Message('Password Reset Request',
