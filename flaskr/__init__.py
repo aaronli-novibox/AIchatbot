@@ -396,7 +396,7 @@ def create_app(test_config=None):
 
         user = Influencer.objects(
             Q(influencer_email=influencer_identifier) |
-            Q(promo_code=influencer_identifier)).first()
+            Q(promo_code=influencer_identifier)).exclude('id', 'orders', 'product').first()
 
         if not user:
             return jsonify({'error': 'Email or promocode not found'}), 404
@@ -419,7 +419,11 @@ def create_app(test_config=None):
 
         # Convert MongoDB documents to a JSON serializable format
         user_data = serialize_object(user.to_mongo().to_dict())
-        
+
+        # Delete password
+        if 'password' in user_data:
+            del user_data['password']
+
         return jsonify({
             'message': 'Login successful',
             'user': user_data,
@@ -777,7 +781,9 @@ def create_app(test_config=None):
         data = request.get_json()
         influencer_name = data.get('influencer_name')
 
-        user = Influencer.objects(influencer_name=influencer_name).first()
+        user = Influencer.objects(influencer_name=influencer_name).exclude(
+                'id', 'password', 'orders',
+                'product').first()
         if not user:
             return jsonify({'message': 'Influencer not found'}), 404
 
