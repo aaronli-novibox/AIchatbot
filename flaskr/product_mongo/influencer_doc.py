@@ -2,6 +2,7 @@ from .basic_doc import *
 from .mongo_doc import *
 from mongoengine import Document, ValidationError, EmbeddedDocument, LazyReferenceField, EmbeddedDocumentField, ReferenceField, DoesNotExist, StringField, ListField, BinaryField, DecimalField
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 # fmt: off
 
@@ -91,44 +92,52 @@ class Influencer(Document):
 
     is_email_confirmed = BooleanField()
 
-    def get_orderlist(self, search_term = ''):
+    def get_orderlist(self, search_term=''):
         all_orders = self.orders
         orderlist = []
+
         for order_info in all_orders:
             order = order_info.order  # Ensure OrderInfo has a reference to Order
             for li in order.lineitem:  # Ensure Order has a list of LineItem
                 product_order = {}  # Order per product
                 product_order['Name'] = li.lineitem_name
                 product_order['ID'] = li.lineitem_sku
-                product_order['Unit Price'] = li.lineitem_price
-                product_order['Financial Status'] = order.displayFinancialStatus
-                product_order['Paid at'] = order.processedAt
-                product_order['Fulfilled at'] = order.closedAt
+                product_order['Unit Price'] = float(li.lineitem_price)
+                product_order['Financial Status'] = order.displayFinancialStatus.value if order.displayFinancialStatus else None  # Convert to string
+                product_order['Paid at'] = order.createdAt.isoformat() if order.createdAt else None  # Convert to ISO string
+                product_order['Fulfilled at'] = order.closedAt.isoformat() if order.closedAt else None  # Convert to ISO string
                 product_order['Purchased'] = li.lineitem_quantity
-                product_order['Total Price'] = li.lineitem_quantity * li.lineitem_price
-                product_order['onlineStoreUrl'] = li.product.onlineStoreUrl
-                product_order['featuredImage'] = li.product.featuredImage
+                product_order['Total Price'] = float(li.lineitem_quantity * li.lineitem_price)
 
-                # Commission calculation
-                product_details = self.find_product(li.product.id)
-                if product_details and product_details.product_contract_start <= order.createdAt and product_details.product_contract_end >= order.createdAt:
-                    product_order['Commission Rate'] = product_details.commission
-                    try:
-                        product_order['Commissions'] = float(product_details.commission.replace('%', '')) / 100 * li.lineitem_price * li.lineitem_quantity
-                    except ValueError:
-                        print("Cannot find the commission")
+                # Fetch the Product document lazily
+                product = li.product.fetch() if li.product else None
+                if product:
+                    product_order['onlineStoreUrl'] = product.onlineStoreUrl if product.onlineStoreUrl else ''
+                    product_order['featuredImage'] = product.featuredImage.url if product.featuredImage else None
+
+                    # Commission calculation
+                    product_details = self.find_product(product.id)
+                    if product_details and product_details.product_contract_start <= order.createdAt and product_details.product_contract_end >= order.createdAt:
+                        product_order['Commission Rate'] = product_details.commission
+                        try:
+                            commission_rate = Decimal(product_details.commission.replace('%', '')) / Decimal(100)
+                            product_order['Commissions'] = float(commission_rate * li.lineitem_price * li.lineitem_quantity)
+                        except ValueError:
+                            print("Invalid commission format")
+                            product_order['Commission Rate'] = '8%'
+                            product_order['Commissions'] = float(Decimal('0.08') * li.lineitem_price * li.lineitem_quantity)
+                    else:
                         product_order['Commission Rate'] = '8%'
-                        product_order['Commissions'] = 0.08 * li.lineitem_quantity * li.lineitem_price
-                else:
-                    product_order['Commission Rate'] = '8%'
-                    product_order['Commissions'] = 0.08 * li.lineitem_quantity * li.lineitem_price
-
-                normalized_search_term = search_term.strip().lower()
-                if not normalized_search_term or normalized_search_term in product_order[
-                        'Name'].lower():
-                    orderlist.append(product_order)
-
+                        product_order['Commissions'] = float(Decimal('0.08') * li.lineitem_price * li.lineitem_quantity)
+                    
+                    # Normalize and filter search term
+                    normalized_search_term = search_term.strip().lower()
+                    if not normalized_search_term or normalized_search_term in product_order['Name'].lower():
+                        orderlist.append(product_order)
+                # else:
+                #     print(product_order['Name'])
         return orderlist
+
 
     # 来一笔新订单，更新influencer的信息，webhook
     def append_order(self, order):

@@ -1,6 +1,6 @@
 # fmt: off
 from .basic_doc import *
-from mongoengine import CASCADE, PULL, LazyReferenceField,ReferenceField
+from mongoengine import CASCADE, PULL, LazyReferenceField,ReferenceField,StringField,BooleanField,ListField,Document,IntField,URLField,EmbeddedDocumentField, DateTimeField, EmbeddedDocument
 
 
 

@@ -732,7 +732,7 @@ def create_app(test_config=None):
     @app.route('/orderlist', methods=['POST'])
     def get_orderlist():
         data = request.get_json()
-        search_term = data.get('search')    # TODO: 这个search_term是用来干什么的？
+        search_term = data.get('search')
         role = data.get('role')
         influencer_name = data.get('influencer_name')
 
@@ -742,34 +742,6 @@ def create_app(test_config=None):
 
         return jsonify({'data': influencer.get_orderlist(search_term)}), 200
 
-    # @app.route('/products')
-    # def getProductsInfoFromMongoDB():
-    #     products_list = getProductListFromMongoDB()
-
-    #     # user_data = {}
-
-    #     products_list = [
-    #         product.to_mongo().to_dict() for product in products_list
-    #     ]
-    #     current_app.logger.info(products_list[0])
-
-    #     return jsonify({
-    #         'data': {
-    #             'products': products_list
-    #         },
-    #         'message': 'success'
-    #     }), 200
-
-    # @app.route('/customers')
-    # def getCustomersInfoFromMongoDB():
-    #     customers_list = getCustomerListFromMongoDB()
-
-    #     return jsonify({
-    #         'data': {
-    #             'customers': customers_list
-    #         },
-    #         'message': 'success'
-    #     }), 200
 
     @app.route('/influencers')
     def getInfluencersInfoFromMongoDB():
