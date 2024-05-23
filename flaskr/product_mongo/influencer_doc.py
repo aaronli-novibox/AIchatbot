@@ -104,8 +104,8 @@ class Influencer(Document):
                 product_order['id'] = li.lineitem_sku
                 product_order['unit_price'] = float(li.lineitem_price)
                 product_order['status'] = order.displayFinancialStatus.value if order.displayFinancialStatus else None  # Convert to string
-                product_order['paid_at'] = order.createdAt.isoformat() if order.createdAt else None  # Convert to ISO string
-                product_order['fulfilled_at'] = order.closedAt.isoformat() if order.closedAt else None  # Convert to ISO string
+                product_order['paid_at'] = order.createdAt.strftime("%Y-%m-%d") if order.createdAt else 'N/A' 
+                product_order['fulfilled_at'] = order.closedAt.strftime("%Y-%m-%d") if order.closedAt else 'N/A' 
                 product_order['purchased'] = li.lineitem_quantity
                 product_order['total_price'] = float(li.lineitem_quantity * li.lineitem_price)
                 product_order['commission_rate'] = li.commission

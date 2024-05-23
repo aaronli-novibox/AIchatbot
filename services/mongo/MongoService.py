@@ -285,35 +285,35 @@ def getInflencerProducts(influencer_name, search_term=''):
 
     in_signed_products = []
 
-    for product in signed_products:
-        # Prepare the product dictionary
-        product_info = {
-            'title':
-                product.product.title,
-            'commission_rate':
-                product.commission,    # Default to '8%' if not specified
-            'product_shopify_id':
-                product.product.shopify_id,
-            'start_time':
-                product.product_contract_start.strftime("%Y-%m-%d")
-                if product.product_contract_start else "N/A",
-            'end_time':
-                product.product_contract_end.strftime("%Y-%m-%d")
-                if product.product_contract_end else "N/A",
-            'status':
-                True
-                if product.product_contract_end > datetime.now() else False,
-            'featuredImage':
-                product.product.featuredImage,
-            'onlineStoreUrl':
-                product.product.onlineStoreUrl,
-        }
+    for one_product in signed_products:
+            # Prepare the product dictionary
+            if one_product.product:
+                product_info = {
+                    'title':
+                        one_product.product.title,
+                    'commission_rate':
+                        one_product.commission,    # Default to '8%' if not specified
+                    'product_shopify_id':
+                        one_product.product.shopify_id,
+                    'start_time':
+                        one_product.product_contract_start.strftime("%Y-%m-%d")
+                        if one_product.product_contract_start else "N/A",
+                    'end_time':
+                        one_product.product_contract_end.strftime("%Y-%m-%d")
+                        if one_product.product_contract_end else "N/A",
+                    'status':
+                        True
+                        if one_product.product_contract_end > datetime.now() else False,
+                    'featuredImage':
+                        one_product.product.featuredImage,
+                    'onlineStoreUrl':
+                        one_product.product.onlineStoreUrl,
+                }
 
-        normalized_search_term = search_term.strip().lower()
-        if not normalized_search_term or normalized_search_term in product_info[
-                'title'].lower():
-            in_signed_products.append(product_info)
-
+                normalized_search_term = search_term.strip().lower()
+                if not normalized_search_term or normalized_search_term in product_info[
+                        'title'].lower():
+                    in_signed_products.append(product_info)
     return in_signed_products
 
 
