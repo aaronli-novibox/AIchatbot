@@ -3,6 +3,7 @@ from .mongo_doc import *
 from mongoengine import Document, ValidationError, EmbeddedDocument, LazyReferenceField, EmbeddedDocumentField, ReferenceField, DoesNotExist, StringField, ListField, BinaryField, DecimalField
 from datetime import datetime, timedelta
 
+# fmt: off
 
 class InfluencerProduct(EmbeddedDocument):
 
@@ -132,7 +133,7 @@ class Influencer(Document):
     # 来一笔新订单，更新influencer的信息，webhook
     def append_order(self, order):
 
-        order_info = OrderInfo(order=order).save()
+        order_info = OrderInfo(order=order)
 
         self.orders.append(order_info)
 
@@ -147,10 +148,10 @@ class Influencer(Document):
                 product_details = self.find_product(li.product.id)
 
                 if product_details and product_details.product_contract_start <= order.created_at and product_details.product_contract_end >= order.created_at:
-                    
+
                     li.commission_fee = (float(product_details.commission.replace('%', '')) /
                         100) * li.lineitem_quantity * li.lineitem_price
-                    
+
                     order_info.order_commission_fee += li.commission_fee
 
                     # 增加class中的total_commission
@@ -169,7 +170,7 @@ class Influencer(Document):
 
                 li.save()
 
-        order_info.save()
+
         self.save()
 
     def find_product(self, product_id):
@@ -185,7 +186,7 @@ class Influencer(Document):
             if ip.product and ip.product.shopify_id == product_id:
                 return ip
         return None
-    
+
     def get_top_ten_selling_products(self, month):
         # Parse the month and get the start and end dates
         start_date = datetime.strptime(month, "%Y-%m")
@@ -281,12 +282,11 @@ class Influencer(Document):
                 one_product['commission'] = product_details.commission
             else:
                 one_product['commission'] = '8%'
-            
+
             top_ten_products.append(one_product)
 
         return top_ten_products
 
-    
     def get_last_month_sold_products(self, month):
         # Parse the month and get the start and end dates
         start_date = datetime.strptime(month, "%Y-%m")
