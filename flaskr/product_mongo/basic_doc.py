@@ -264,7 +264,7 @@ class LineItem(Document):
     shopify_id = StringField(required=True, unique=True, help_text="Globally unique identifier.")
     lineitem_quantity = IntField(required=True, help_text="The number of items purchased.")
     lineitem_name = StringField(required=True, help_text="The title of the product.")
-    lineitem_price = DecimalField(required=True, help_text="The price of the item.")
+    lineitem_price = FloatField(required=True, help_text="The price of the item.")
     lineitem_compare_at_price = DecimalField(help_text="The compare at price of the item.")
     lineitem_sku = StringField(help_text="The SKU of the item.")
     lineitem_requires_shipping = BooleanField(help_text="Whether the item requires shipping.")

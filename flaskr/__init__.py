@@ -267,7 +267,6 @@ def create_app(test_config=None):
 
     @app.route('/get_profile_photo/<influencer_name>', methods=['GET'])
     def get_profile_photo(influencer_name):
-
         user = Influencer.objects(influencer_name=influencer_name).first()
 
         if user and user['avatar']:
@@ -607,8 +606,8 @@ def create_app(test_config=None):
         top_products = []
         for time in range:
             result = influencer_data.get_top_ten_selling_products(time)
-            top_products.append(dict(time=result))
-
+            top_products.append({time : result})
+        print(top_products)
         return jsonify({
             'cards': {
                 'total_earnings': total_earnings,
