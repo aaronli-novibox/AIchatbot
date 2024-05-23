@@ -737,7 +737,7 @@ def create_app(test_config=None):
     def get_orderlist():
         data = request.get_json()
         search_term = data.get('search')
-        role = data.get('role')
+        # role = data.get('role')
         influencer_name = data.get('influencer_name')
 
         influencer = Influencer.objects(influencer_name=influencer_name).first()

@@ -100,39 +100,26 @@ class Influencer(Document):
             order = order_info.order  # Ensure OrderInfo has a reference to Order
             for li in order.lineitem:  # Ensure Order has a list of LineItem
                 product_order = {}  # Order per product
-                product_order['Name'] = li.lineitem_name
-                product_order['ID'] = li.lineitem_sku
-                product_order['Unit Price'] = float(li.lineitem_price)
-                product_order['Financial Status'] = order.displayFinancialStatus.value if order.displayFinancialStatus else None  # Convert to string
-                product_order['Paid at'] = order.createdAt.isoformat() if order.createdAt else None  # Convert to ISO string
-                product_order['Fulfilled at'] = order.closedAt.isoformat() if order.closedAt else None  # Convert to ISO string
-                product_order['Purchased'] = li.lineitem_quantity
-                product_order['Total Price'] = float(li.lineitem_quantity * li.lineitem_price)
+                product_order['name'] = li.lineitem_name
+                product_order['id'] = li.lineitem_sku
+                product_order['unit_price'] = float(li.lineitem_price)
+                product_order['status'] = order.displayFinancialStatus.value if order.displayFinancialStatus else None  # Convert to string
+                product_order['paid_at'] = order.createdAt.isoformat() if order.createdAt else None  # Convert to ISO string
+                product_order['fulfilled_at'] = order.closedAt.isoformat() if order.closedAt else None  # Convert to ISO string
+                product_order['purchased'] = li.lineitem_quantity
+                product_order['total_price'] = float(li.lineitem_quantity * li.lineitem_price)
+                product_order['commission_rate'] = li.commission
+                product_order['commissions'] = li.commission_fee
 
                 # Fetch the Product document lazily
                 product = li.product.fetch() if li.product else None
                 if product:
                     product_order['onlineStoreUrl'] = product.onlineStoreUrl if product.onlineStoreUrl else ''
                     product_order['featuredImage'] = product.featuredImage.url if product.featuredImage else None
-
-                    # Commission calculation
-                    product_details = self.find_product(product.id)
-                    if product_details and product_details.product_contract_start <= order.createdAt and product_details.product_contract_end >= order.createdAt:
-                        product_order['Commission Rate'] = product_details.commission
-                        try:
-                            commission_rate = Decimal(product_details.commission.replace('%', '')) / Decimal(100)
-                            product_order['Commissions'] = float(commission_rate * li.lineitem_price * li.lineitem_quantity)
-                        except ValueError:
-                            print("Invalid commission format")
-                            product_order['Commission Rate'] = '8%'
-                            product_order['Commissions'] = float(Decimal('0.08') * li.lineitem_price * li.lineitem_quantity)
-                    else:
-                        product_order['Commission Rate'] = '8%'
-                        product_order['Commissions'] = float(Decimal('0.08') * li.lineitem_price * li.lineitem_quantity)
                     
                     # Normalize and filter search term
                     normalized_search_term = search_term.strip().lower()
-                    if not normalized_search_term or normalized_search_term in product_order['Name'].lower():
+                    if not normalized_search_term or normalized_search_term in product_order['name'].lower():
                         orderlist.append(product_order)
                 # else:
                 #     print(product_order['Name'])
@@ -146,39 +133,40 @@ class Influencer(Document):
 
         self.orders.append(order_info)
 
-        if order.displayFinancialStatus == "PAID":
+        if order.displayFinancialStatus.value == "PAID":
 
             for li in order.lineitem:
 
                 # 增加class中的order_nums
                 self.order_nums += li.lineitem_quantity
 
-                # 找到对应的product(签约的)
-                product_details = self.find_product(li.product.id)
+                # 找到对应的product
+                product = li.product.fetch() if li.product else None
+                if product:
+                    product_details = self.find_product(product.id)
 
-                if product_details and product_details.product_contract_start <= order.created_at and product_details.product_contract_end >= order.created_at:
+                    if product_details and product_details.product_contract_start <= order.created_at and product_details.product_contract_end >= order.created_at:
+                        
+                        li.commission = product_details.commission
+                        li.commission_fee =(float(product_details.commission.replace('%', '')) /
+                            100) * li.lineitem_quantity * li.lineitem_price
 
-                    li.commission_fee = (float(product_details.commission.replace('%', '')) /
-                        100) * li.lineitem_quantity * li.lineitem_price
+                        order_info.order_commission_fee += li.commission_fee
 
-                    order_info.order_commission_fee += li.commission_fee
+                        # 增加class中的total_commission
+                        self.total_commission += li.commission_fee
 
-                    # 增加class中的total_commission
-                    self.total_commission += li.commission_fee
+                    else:
+                        li.commission = '8%'
+                        li.commission_fee = 0.08 * li.lineitem_quantity * li.lineitem_price
 
+                        order_info.order_commission_fee += li.commission_fee
+                        # 增加class中的total_commission
+                        self.total_commission += li.commission_fee
+
+                        
                     product_details.save()
-
-                else:
-                    li.commission_fee = 0.08 * li.lineitem_quantity * li.lineitem_price
-
-                    order_info.order_commission_fee += li.commission_fee
-                    # 增加class中的total_commission
-                    self.total_commission += li.commission_fee
-
-                    product_details.save()
-
-                li.save()
-
+                    li.save()
 
         self.save()
 
