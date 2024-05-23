@@ -1,6 +1,6 @@
 from .basic_doc import *
 from .mongo_doc import *
-from mongoengine import Document, ValidationError, EmbeddedDocument, LazyReferenceField, EmbeddedDocumentField, ReferenceField, DoesNotExist, StringField, ListField, BinaryField, DecimalField
+from mongoengine import Document, ValidationError, EmbeddedDocument, LazyReferenceField, EmbeddedDocumentField, ReferenceField, DoesNotExist, StringField, ListField, BinaryField, DecimalField, FloatField
 from datetime import datetime, timedelta
 from decimal import Decimal
 
@@ -10,7 +10,7 @@ class InfluencerProduct(EmbeddedDocument):
 
     product = ReferenceField(Product)
     commission = StringField(default="8%")
-    commission_fee = DecimalField(default=0)
+    commission_fee = FloatField(default=0)
     product_contract_start = DateTimeField()
     product_contract_end = DateTimeField()
     video_exposure = StringField()
@@ -123,6 +123,7 @@ class Influencer(Document):
                         orderlist.append(product_order)
                 # else:
                 #     print(product_order['Name'])
+        print(orderlist[0])
         return orderlist
 
 
