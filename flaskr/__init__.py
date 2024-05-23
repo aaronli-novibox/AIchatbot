@@ -692,17 +692,29 @@ def create_app(test_config=None):
     def get_influencer_products():
         data = request.get_json()
         influencer_name = data.get('influencer_name')
-        # 逻辑有问题，search_term为空时，default设置search_term为''而不是空，not ''为True，那最后都会加到products_list中
-        # search_term = data.get('search', '')
-        search_term = data.get('search')    #暂时改为不设置默认值，有问题指正我
+        search_term = data.get('search')
 
         if not influencer_name:
             return jsonify({'message': 'Influencer name is required'}), 400
 
-        # need to confirm the details
-        products_list = getInflencerProducts(influencer_name, search_term)
+        # Fetch the influencer by name
+        influencer = Influencer.objects(influencer_name=influencer_name).first()
 
-        return jsonify({'products': products_list}), 200
+        if not influencer:
+            return jsonify({'message': 'Influencer not found'}), 404
+
+        # Filter products based on search_term if provided
+        products_list = []
+        for product in influencer.product:
+            product_info = product.to_mongo().to_dict()
+            if not search_term or search_term.lower() in product_info['title'].lower():
+                products_list.append(product_info)
+
+        # Serialize the products list
+        serialized_products = serialize_object(products_list)
+        print(serialized_products)
+
+        return jsonify({'products': serialized_products}), 200
 
     # TODO: need to confirm the logic
     @app.route('/allproducts', methods=['POST'])
