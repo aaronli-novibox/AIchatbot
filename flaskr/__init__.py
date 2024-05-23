@@ -744,7 +744,7 @@ def create_app(test_config=None):
         if not influencer:
             return jsonify({'message': 'Influencer not found'}), 404
 
-        return jsonify({'data': influencer.get_orderlist(search_term)}), 200
+        return jsonify({'orders': influencer.get_orderlist(search_term)}), 200
 
 
     @app.route('/influencers')
