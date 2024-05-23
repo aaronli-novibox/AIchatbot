@@ -177,26 +177,26 @@ for index, row in data.iterrows():
                 product=None,
                 variant=None)
 
-        # sku = str(row['Lineitem sku'])
-        # print(sku)
+        title = str(row['Lineitem name'])
+        product = Product.objects(title=title).first()
+        product_variant = ProductVariant.objects(product=product).first()
 
-        # product_variant = ProductVariant.objects(sku=sku).first()
-        # product = product_variant.product
-
-        # li.product = product
-        # li.variant = product_variant
+        li.product = product
+        li.variant = product_variant
+        li.commission_fee = int(li.lineitem_price) * int(
+            li.lineitem_quantity) * 0.08
 
         li.save()
         order.lineitem.append(li)
         order.save(validate=False)
 
         influencer.append_order(order)
-        # influencer_product = InfluencerProduct(
-        #     product=product,
-        #     product_contract_start=datetime.strptime("02-18-2024", "%m-%d-%Y"),
-        #     product_contract_end=datetime.strptime("02-18-2025", "%m-%d-%Y"))
-        # if influencer_product not in influencer.product:
-        #     influencer.product.append(influencer_product)
+        influencer_product = InfluencerProduct(
+            product=product,
+            product_contract_start=datetime.strptime("02-18-2024", "%m-%d-%Y"),
+            product_contract_end=datetime.strptime("02-18-2025", "%m-%d-%Y"))
+        if influencer_product not in influencer.product:
+            influencer.product.append(influencer_product)
 
         influencer.save()
         # i += 1
