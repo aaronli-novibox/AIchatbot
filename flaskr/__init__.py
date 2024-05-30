@@ -75,6 +75,22 @@ def create_app(test_config=None):
     app.config['BASEURL'] = os.getenv('BASEURL')
     app.config['BDEMAIL'] = os.getenv('BDEMAIL')
     app.config['MODEL'] = load_model()                             # Load the model for aichatbot service
+    app.config['SWAGGER'] = {
+        'title': 'Novi Box API',
+        'uiversion': 3,
+        'openapi': '3.0.2',
+        'specs': [
+            {
+                'endpoint': 'apispec_1',
+                'route': '/apispec_1.json',
+                'rule_filter': lambda rule: True,
+                'model_filter': lambda tag: True,
+            }
+        ],
+        'static_url_path': '/flasgger_static',
+        'swagger_ui': True,
+        'specs_route': '/swagger/'
+    }
 
     mail = Mail(app)
 
