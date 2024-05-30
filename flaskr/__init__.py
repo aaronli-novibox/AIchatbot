@@ -722,15 +722,16 @@ def create_app(test_config=None):
     def get_bd_influencers_products():
         data = request.get_json()
         role = data.get('role')
-        search_term = data.get('search')  # 暂时改为不设置默认值，有问题指正我
+        search_term = data.get('search', '')  # 暂时改为不设置默认值，有问题指正我
 
         if not role:
             return jsonify({'message': 'Role name is required'}), 400
 
         # need to confirm the details
         products_list = get_all_influencer_products(search_term)
+        serialized_products = [serialize_object(product) for product in products_list]
 
-        return jsonify({'products': products_list}), 200
+        return jsonify({'products': serialized_products}), 200
 
     @app.route('/orderlist', methods=['POST'])
     def get_orderlist():
@@ -744,6 +745,17 @@ def create_app(test_config=None):
             return jsonify({'message': 'Influencer not found'}), 404
 
         return jsonify({'orders': influencer.get_orderlist(search_term)}), 200
+
+    @app.route('/orders', methods=['POST'])
+    def get_all_orderlist():
+        data = request.get_json()
+        search_term = data.get('search')
+        role = data.get('role')
+
+        if role == 'admin':
+            return jsonify({'message': 'Influencer not found'}), 404
+
+        return jsonify({'orders': ""}), 200
 
 
     @app.route('/influencers')
