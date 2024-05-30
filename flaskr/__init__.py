@@ -5,14 +5,14 @@ from services.aichatbot.AIchatBotService import *
 from services.mongo.MongoService import *
 from services.webhook.webhookService import *
 from bson.objectid import ObjectId
-import requests
+from flasgger.utils import swag_from
+from flaskr.schemas import *
 from werkzeug.security import generate_password_hash, check_password_hash
 import secrets
 from flask_cors import CORS
-from datetime import datetime, timedelta
 from functools import wraps
 from bson import binary
-from io import BytesIO
+from flasgger import Swagger
 import io
 import jwt
 import base64
@@ -77,6 +77,9 @@ def create_app(test_config=None):
     app.config['MODEL'] = load_model()                             # Load the model for aichatbot service
 
     mail = Mail(app)
+
+    # Initialize Swagger
+    swagger = Swagger(app)
 
     # Serializer for creating the token
     s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
@@ -154,8 +157,8 @@ def create_app(test_config=None):
         except json.JSONDecodeError:
             return None
 
-    # TODO: register role is just 'influencer'
     @app.route('/register', methods=['POST'])
+    @swag_from(register_schema)
     def register():
         data = request.form
         file = request.files.get('avatar')
@@ -384,6 +387,7 @@ def create_app(test_config=None):
 
     # Login
     @app.route('/login', methods=['POST'])
+    @swag_from(login_schema)
     @validate_json('password', one_of=['email', 'promocode'])
     def login():
         data = request.get_json()
@@ -447,6 +451,7 @@ def create_app(test_config=None):
         return obj
 
     @app.route('/checkusername', methods=['POST'])
+    @swag_from(check_username_schema)
     @validate_json('username')
     def already_has_username():
         data = request.get_json()
@@ -459,6 +464,7 @@ def create_app(test_config=None):
         return jsonify({'isUnique': True}), 200
 
     @app.route('/checkemail', methods=['POST'])
+    @swag_from(check_email_schema)
     @validate_json('email')
     def check_email():
         data = request.get_json()
@@ -469,6 +475,7 @@ def create_app(test_config=None):
         return jsonify({'isUnique': True}), 200
 
     @app.route('/promocode', methods=['POST'])
+    @swag_from(promo_generator_schema)
     @validate_json('firstname', 'lastname')
     def promo_generator():
         data = request.get_json()
@@ -498,6 +505,7 @@ def create_app(test_config=None):
         }), 200
 
     @app.route('/checkpromocode', methods=['POST'])
+    @swag_from(check_promo_schema)
     @validate_json('promocode')
     def check_promo():
         data = request.get_json()
@@ -579,8 +587,8 @@ def create_app(test_config=None):
             }
         }), 200
 
-    # TODO: need to confirm the details
     @app.route('/userdash', methods=['POST'])
+    @swag_from(get_userbroad_schema)
     def get_userbroad():
         data = request.get_json()
         influencer_name = data.get('influencer_name')
@@ -620,6 +628,7 @@ def create_app(test_config=None):
 
     # Forgot password endpoint
     @app.route('/forgot_password', methods=['POST'])
+    @swag_from(forgot_password_schema)
     @validate_json('email')
     def forgot_password():
         data = request.get_json()
@@ -655,6 +664,7 @@ def create_app(test_config=None):
                            }), 500    # Email sending failed
 
     @app.route('/reset/<token>', methods=['GET', 'POST'])
+    @swag_from(reset_with_token_schema)
     @validate_json('password')
     def reset_with_token(token):
         try:
@@ -674,6 +684,7 @@ def create_app(test_config=None):
         return jsonify({'message': 'Token Valid'}), 200
 
     @app.route('/productlist', methods=['POST'])
+    @swag_from(get_all_products_schema)
     @validate_json('influencer_name', 'role')
     def get_all_products():
         data = request.get_json()
@@ -693,8 +704,8 @@ def create_app(test_config=None):
 
         return jsonify({'products': products_list}), 200
 
-    # TODO: need to confirm the logic
     @app.route('/yourproducts', methods=['POST'])
+    @swag_from(get_influencer_products_schema)
     @validate_json('influencer_name', 'role')
     def get_influencer_products():
         data = request.get_json()
@@ -718,6 +729,7 @@ def create_app(test_config=None):
 
     # TODO: need to confirm the logic
     @app.route('/allproducts', methods=['POST'])
+    @swag_from(get_bd_influencers_products_schema)
     @validate_json('influencer_name', 'role')
     def get_bd_influencers_products():
         data = request.get_json()
@@ -734,6 +746,7 @@ def create_app(test_config=None):
         return jsonify({'products': serialized_products}), 200
 
     @app.route('/orderlist', methods=['POST'])
+    @swag_from(get_orderlist_schema)
     def get_orderlist():
         data = request.get_json()
         search_term = data.get('search')
@@ -747,6 +760,7 @@ def create_app(test_config=None):
         return jsonify({'orders': influencer.get_orderlist(search_term)}), 200
 
     @app.route('/orders', methods=['POST'])
+
     def get_all_orderlist():
         data = request.get_json()
         search_term = data.get('search')
@@ -770,8 +784,8 @@ def create_app(test_config=None):
             'message': 'success'
         })
 
-    # TODO: 需要什么字段确定
     @app.route('/influencerlist', methods=['POST'])
+    @swag_from(get_influencerlist_schema)
     def get_influencerlist():
         data = request.get_json()
         search_term = data.get('search', '')
@@ -788,6 +802,7 @@ def create_app(test_config=None):
             return jsonify({'msg': 'Not admin account'}), 200
 
     @app.route('/influencer', methods=['POST'])
+    @swag_from(get_influencer_info_schema)
     def get_influencer_info():
         data = request.get_json()
         influencer_name = data.get('influencer_name')
