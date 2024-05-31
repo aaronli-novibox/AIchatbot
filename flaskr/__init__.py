@@ -357,27 +357,28 @@ def create_app(test_config=None):
         updated_data = {
             "set__age":
                 data.get('age', influencer.get('age')),
+            "set__first_name":
+                data.get('first_name', influencer.get('first_name')),
+            "set__middle_name":
+                data.get('middle_name', influencer.get('middle_name')),
+            "set__last_name":
+                data.get('last_name', influencer.get('last_name')),
             "set__country":
                 data.get('country', influencer.get('country')),
             "set__city_state":
                 data.get('cityState', influencer.get('city_state')),
+            "set__zipcode":
+                data.get('zipcode', influencer.get('zipcode')),
             "set__phone":
                 data.get('phone', influencer.get('phone')),
             "set__shipping_address":
                 data.get('shippingAddress', influencer.get('shipping_address')),
             "set__bio":
                 data.get('bio', influencer.get('bio')),
-            "set__collaboration":
-                data.get('collaborations', influencer.get('collaboration')),
-            "set__audience":
-                data.get('audience', influencer.get('audience')),
             "set__niche":
                 data.get('niches', influencer.get('niche')),
             "set__interest":
                 data.get('interests', influencer.get('interest')),
-            "set__is_email_confirmed":
-                data.get('is_email_confirmed',
-                         influencer.get('is_email_confirmed')),
         }
 
         update_result = Influencer.objects(influencer_name=influencer_name).update_one(
@@ -389,17 +390,6 @@ def create_app(test_config=None):
 
         return jsonify({'message': 'User information updated successfully'
                        }), 200
-
-        # # Perform the update using $set to only modify allowed fields
-        # update_result = influencers_collection.update_one(
-        #     {'influencer_email': email}, {'$set': updated_data})
-
-        # # Check if the update was successful
-        # if update_result.matched_count == 0:
-        #     return jsonify({'error': 'Update failed'}), 500
-
-        # return jsonify({'message': 'User information updated successfully'
-        #                }), 200
 
     # Login
     @app.route('/login', methods=['POST'])
@@ -806,9 +796,10 @@ def create_app(test_config=None):
         data = request.get_json()
         search_term = data.get('search', '')
         role = data.get('role', '')
+        status = data.get('status', '')
 
         if role == 'admin':
-            influencers = search_influencerList(search=search_term)
+            influencers = search_influencerList(search=search_term, status=status)
             for influencer in influencers:
                 if 'avatar' in influencer:
                     influencer['avatar'] = base64.b64encode(influencer['avatar']).decode('utf-8')

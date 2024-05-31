@@ -46,23 +46,24 @@ def getInfluencerListFromMongoDB():
     return [infl.to_mongo().to_dict() for infl in influencers]    # 返回影响者列表
 
 
-def search_influencerList(search=''):
+def search_influencerList(search='', status=''):
+    query = Q()
 
     if search:
         regex_pattern = f".*{search}.*"
         # 使用 Q 对象来构建 OR 查询，并进行不区分大小写的模糊搜索
-        influencers = Influencer.objects(
-            Q(influencer_name__iregex=regex_pattern) |
-            Q(promo_code__iregex=regex_pattern)).exclude(
-                'id', 'password', 'orders',
-                'product')    # 排除 '_id' 和 'password' 字段
-    else:
-        # 没有搜索词则返回所有影响者，并排除特定字段
-        influencers = Influencer.objects().exclude('id', 'password', 'orders',
-                                                   'product')
+        search_query = Q(influencer_name__iregex=regex_pattern) | Q(promo_code__iregex=regex_pattern)
+        query &= search_query
 
-    return [influ.to_mongo().to_dict() for influ in influencers]
+    if status:
+        status_query = Q(role=status)
+        query &= status_query
 
+    # 没有搜索词则返回所有影响者，并排除特定字段
+    influencers = Influencer.objects(query).exclude('id', 'password', 'orders', 'product')
+    influencer_list = [influ.to_mongo().to_dict() for influ in influencers]
+
+    return influencer_list
 
 def get_promocode(influencer_name=''):
 
