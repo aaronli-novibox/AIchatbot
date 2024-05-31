@@ -544,16 +544,15 @@ def create_app(test_config=None):
             return jsonify({'message': 'Influencer name is required'}), 400
 
         role = data.get('role')
-        influencer_list = []
-        all_influencers = Influencer.objects.count()
+        if role != 'admin':
+            return jsonify({'message': 'Permission Denied'}), 500
+        
+        all_influencers = Influencer.objects(role__ne='admin').count()
 
         last_month_sales = 0
         last_month_orders = 0
 
-        if role == 'admin':
-
-            # 获取什么信息？
-            products_list = getProductListFromMongoDB()
+        products_list = getProductListFromMongoDB()
 
         influencer_data = Influencer.objects(
             influencer_name=influencer_name).first()

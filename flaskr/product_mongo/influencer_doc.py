@@ -128,12 +128,22 @@ class Influencer(Document):
 
     # 来一笔新订单，更新influencer的信息，webhook
     def append_order(self, order):
+        '''
+        只有order status是paid才能append到self.orders。
+        只有从paid变成refund，并且在self.orders里，直接update self.orders，并且减去数据。
+        '''
 
-        order_info = OrderInfo(order=order)
+        # Check if the order is already in self.orders
+        found = False
+        for i, existing_order in enumerate(self.orders):
+            if existing_order.order.shopify_id == order.shopify_id:
+                # Replace the existing order with the new order
+                self.orders[i].order = order
+                found = True
 
-        self.orders.append(order_info)
-
-        if order.displayFinancialStatus.value == "PAID":
+        if not found and order.displayFinancialStatus.value == "PAID":
+            order_info = OrderInfo(order=order)
+            self.orders.append(order_info)
 
             for li in order.lineitem:
 
@@ -149,22 +159,44 @@ class Influencer(Document):
                         
                         li.commission = product_details.commission
                         li.commission_fee =(float(product_details.commission.replace('%', '')) /
-                            100) * li.lineitem_quantity * li.lineitem_price
+                            100) * li.lineitem_quantity * li.lineitem_price - li.lineitem_discount
 
                         order_info.order_commission_fee += li.commission_fee
+
+                        product_details.commission_fee += li.commission_fee 
 
                         # 增加class中的total_commission
                         self.total_commission += li.commission_fee
 
                     else:
                         li.commission = '8%'
-                        li.commission_fee = 0.08 * li.lineitem_quantity * li.lineitem_price
+                        li.commission_fee = 0.08 * li.lineitem_quantity * li.lineitem_price - li.lineitem_discount
 
                         order_info.order_commission_fee += li.commission_fee
+                        product_details.commission_fee += li.commission_fee 
                         # 增加class中的total_commission
                         self.total_commission += li.commission_fee
                    
                     li.save()
+
+        if found and order.displayFinancialStatus.value == "REFUND":
+            for li in order.lineitem:
+
+                # 减去class中的order_nums
+                self.order_nums -= li.lineitem_quantity
+
+                order_info.order_commission_fee -= li.commission_fee
+                self.total_commission -= li.commission_fee
+                
+                # 找到对应的product
+                product = li.product.fetch() if li.product else None
+                if product:
+                    product_details = self.find_product(product.id)
+                    if product_details:
+                        product_details.commission_fee -= li.commission_fee
+
+                li.commission_fee == 0  
+                li.save()
 
         self.save()
 
