@@ -765,16 +765,16 @@ def create_app(test_config=None):
         return jsonify({'orders': influencer.get_orderlist(search_term)}), 200
 
     @app.route('/orders', methods=['POST'])
-
     def get_all_orderlist():
         data = request.get_json()
         search_term = data.get('search')
         role = data.get('role')
 
-        if role == 'admin':
-            return jsonify({'message': 'Influencer not found'}), 404
+        if role != 'admin':
+            return jsonify({'message': 'Your account is wrong!'}), 404
 
-        return jsonify({'orders': ""}), 200
+        all_orders = Influencer.get_all_orderlist(search_term)
+        return jsonify({'orders': all_orders}), 200
 
 
     @app.route('/influencers')
