@@ -10,19 +10,12 @@ if __name__ == '__main__':
         db = client['dev']
 
         # Select the collection
-        collection = db['product']
+        collection = db['order']
 
-        # Define the filter with ObjectId
-        filter = {"_id": ObjectId('662c5ed5c5e9da8462eb2b49')}
+        # Update documents in the collection
+        result = collection.delete_many({})
+        print("succeed")
 
-        # Find the document
-        document = collection.find_one(filter)
-
-        # Print the document
-        if document:
-            print(document)
-        else:
-            print("No document found with the given _id.")
 
     except Exception as e:
         print(f"An error occurred: {e}")

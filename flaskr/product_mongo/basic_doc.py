@@ -270,7 +270,7 @@ class LineItem(Document):
     lineitem_requires_shipping = BooleanField(help_text="Whether the item requires shipping.")
     lineitem_taxable = BooleanField(help_text="Whether the item is taxable.")
     lineitem_fulfillment_status = StringField(help_text="The fulfillment status of the item.")
-    lineitem_discount = DecimalField(help_text="The discount amount applied to the item.")
+    lineitem_discount = FloatField(help_text="The discount amount applied to the item.")
     vendor = StringField(help_text="The vendor of the item.")
     product = LazyReferenceField('Product')
     order = LazyReferenceField('Order')

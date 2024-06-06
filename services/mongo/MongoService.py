@@ -3,6 +3,9 @@ import pandas as pd
 import numpy as np
 from flaskr.product_mongo import *
 from mongoengine import Q
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import math
 
 
 # return cursor type, and filter '_id' field
@@ -429,3 +432,17 @@ def get_all_products_mongodb(influencer_instance, search_term=''):
         product_list.append(product_dict)
 
     return product_list
+
+def get_top_three_selling_products():
+    # Find top three selling products
+    top_products = Product.objects().order_by('-amount', '-revenue').limit(3)
+    products = []
+    for product in top_products:
+        one_product = {}
+        one_product['name'] = product.title
+        one_product['unit_sold'] = product.amount
+        one_product['revenue'] = product.revenue
+        one_product['featuredImage'] = product.featuredImage.url
+        one_product['onlineStoreUrl'] = product.onlineStoreUrl
+        products.append(one_product)
+    return products

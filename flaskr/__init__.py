@@ -532,64 +532,36 @@ def create_app(test_config=None):
 
         if influencer_name is None:
             return jsonify({'message': 'Influencer name is required'}), 400
+        
+        # Check if user exist
+        influencer_data = Influencer.objects.get(
+            influencer_name=influencer_name)
+        if influencer_data is None:
+            return jsonify({'error': 'Influencer not found'}), 404
 
         role = data.get('role')
         if role != 'admin':
             return jsonify({'message': 'Permission Denied'}), 500
         
+        month = data.get('month')
+        
         all_influencers = Influencer.objects(role__ne='admin').count()
 
-        last_month_sales = 0
-        last_month_orders = 0
+        last_month_sales = influencer_data.get_last_month_sales(month)
 
-        products_list = getProductListFromMongoDB()
+        all_orders = influencer_data.get_total_orders(month)
 
-        influencer_data = Influencer.objects(
-            influencer_name=influencer_name).first()
-
-        if influencer_data is not None:
-            # products_list = influencer_data.get('product', [])
-            # TODO: get the necessary data from the influencer document
-            product_details = []
-            for influencer_product in influencer_data.product:
-                product = influencer_product.product
-                if product:
-                    # 此时product是一个Product对象的引用，可以直接访问其字段
-                    product_info = {
-                        'title':
-                            product.title,
-                        "commission_rate":
-                            influencer_product.commission,
-                        'status':
-                            True if product.product_contract_end
-                            > datetime.now() else False,
-                        "start_time":
-                            influencer_product.product_contract_start.strftime(
-                                "%Y-%m-%d")
-                            if influencer_product.product_contract_start else
-                            "N/A",
-                        "end_time":
-                            influencer_product.product_contract_end.strftime(
-                                "%Y-%m-%d") if
-                            influencer_product.product_contract_end else "N/A",
-                        "video_exposure":
-                            influencer_product.video_exposure,
-                        'product_shopify_id':
-                            product.product.shopify_id,
-                        'featuredImage':
-                            product.featuredImage,
-                        'onlineStoreUrl':
-                            product.onlineStoreUrl,
-                    }
-                    product_details.append(product_info)
+        products_list = get_top_three_selling_products()
+        print(products_list)
 
         return jsonify({
-            'data': {
+            'cards': {
                 'all_influencers': all_influencers,
                 'last_month_sales': last_month_sales,
-                'last_month_orders': last_month_orders,
-                'products': product_details
-            }
+                'all_orders': all_orders
+            },
+            'products': products_list,
+            'influencers': 0
         }), 200
 
     @app.route('/userdash', methods=['POST'])

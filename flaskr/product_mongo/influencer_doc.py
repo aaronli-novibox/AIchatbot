@@ -176,7 +176,7 @@ class Influencer(Document):
                 self.orders[i].order = order
                 found = True
 
-        if not found and order.displayFinancialStatus.value == "PAID":
+        if not found and (order.displayFinancialStatus.value == "PAID" or order.displayFinancialStatus.value == "PARTIALLY_REFUNDED") :
             order_info = OrderInfo(order=order)
             self.orders.append(order_info)
 
@@ -188,8 +188,12 @@ class Influencer(Document):
                 # 找到对应的product
                 product = li.product.fetch() if li.product else None
                 if product:
-                    product_details = self.find_product(product.id)
+                    # 更新product的amount
+                    product.amount += li.lineitem_quantity
+                    product.revenue += li.lineitem_quantity * li.lineitem_price
 
+                    # 以下是签约的产品
+                    product_details = self.find_product(product.id)
                     if product_details and product_details.product_contract_start <= order.createdAt and product_details.product_contract_end >= order.createdAt:
                         
                         li.commission = product_details.commission
@@ -226,6 +230,8 @@ class Influencer(Document):
                 # 找到对应的product
                 product = li.product.fetch() if li.product else None
                 if product:
+                    product.amount -= li.lineitem_quantity
+                    product.revenue -= li.lineitem_quantity * li.lineitem_price
                     product_details = self.find_product(product.id)
                     if product_details:
                         product_details.commission_fee -= li.commission_fee
@@ -257,7 +263,7 @@ class Influencer(Document):
         for order_info in self.orders:
             order = order_info.order
             # Filter orders by the specified month
-            if start_date <= order.createdAt < end_date:
+            if start_date <= order.createdAt < end_date and (order.displayFinancialStatus.value == "PAID" or order.displayFinancialStatus.value == "PARTIALLY_REFUNDED"):
                 for line_item in order.lineitem:
                     if line_item.product:
                         product = line_item.product.fetch()
@@ -307,7 +313,7 @@ class Influencer(Document):
         for order_info in self.orders:
             order = order_info.order
             # Filter orders by the specified month
-            if start_date <= order.createdAt < end_date:
+            if start_date <= order.createdAt < end_date and (order.displayFinancialStatus.value == "PAID" or order.displayFinancialStatus.value == "PARTIALLY_REFUNDED"):
                 for line_item in order.lineitem:
                     if line_item.product:  # Ensure product is not None
                         total_quantity += line_item.lineitem_quantity
@@ -317,6 +323,29 @@ class Influencer(Document):
             'total_quantity': total_quantity,
             'total_revenue': total_revenue  # Convert Decimal to float for JSON serialization
         }
+    
+    def get_last_month_sales(self, month):
+        if self.role != 'admin':
+            return False 
+        
+        start_date, end_date = get_start_and_end_dates(month)
+        all_orders = Order.objects()
+        total_sales = 0
+        for order in all_orders:
+            if start_date <= order.createdAt < end_date and (order.displayFinancialStatus.value == "PAID" or order.displayFinancialStatus.value == "PARTIALLY_REFUNDED"):
+                try:
+                    total_sales += order.currentSubtotalPriceSet.shopMoney.amount
+                except:
+                    print(order.id)
+        return total_sales
+    
+    def get_total_orders(self, month):
+        if self.role != 'admin':
+            return False 
+        
+        _, end_date = get_start_and_end_dates(month)
+        total_orders = Order.objects(createdAt__lt=end_date).count()
+        return total_orders
 
 def get_start_and_end_dates(month):
     # Parse the start date
@@ -329,6 +358,7 @@ def get_start_and_end_dates(month):
     end_date = start_date.replace(day=last_day) + timedelta(days=1)
     
     return start_date, end_date
+
 
 # example
 # influencer = Influencer(

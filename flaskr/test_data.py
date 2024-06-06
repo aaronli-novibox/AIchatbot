@@ -47,7 +47,8 @@ def convert_edt_to_utc(edt_time_str):
     utc_time = local_time.astimezone(pytz.utc)
 
     # Return the UTC time as a string
-    return utc_time.strftime('%Y-%m-%d %H:%M:%S')
+    str = utc_time.strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.strptime(str, '%Y-%m-%d %H:%M:%S')
 
 
 load_dotenv()
@@ -62,18 +63,24 @@ WEBHOOK_KEY = os.getenv("WEBHOOK_KEY")
 
 connect('dev', alias='default', host=MONGO_URI)
 
+# Clear existing records in the collections
+Order.drop_collection()
+LineItem.drop_collection()
+
 promo_code = 'MZ_NOVIBOX_5'
 
 influencer = Influencer.objects(promo_code=promo_code).first()
-# influencer.orders = []
-# influencer.save()
+# Clear the orders list for the influencer
+if influencer:
+    influencer.orders = []
+    influencer.save()
 # import sys
 
 # sys.exit()
 
 # Read the Excel file
 data = pd.read_excel(
-    '/Users/tengyp/work/NoviBox/backend/AIchatbot/orders_export_test_data.xlsx')
+    '/Users/yaminzhang/Downloads/orders_export_test_data.xlsx')
 
 last_order = None
 

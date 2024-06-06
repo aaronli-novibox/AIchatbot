@@ -160,6 +160,8 @@ class Product(Document):
     descriptionVector = ListField(FloatField(), default=lambda: [0.0] * 1024)
 
     handle = StringField(help_text="A human-friendly unique string for the product.")
+    amount = IntField(help_text='Record the number of item sold for this product.')
+    revenue = FloatField(help_text='Record the total revenue = amount * lineitem_price')
 
     meta = {
         'indexes': [
