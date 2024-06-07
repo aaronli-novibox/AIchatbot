@@ -155,6 +155,7 @@ class Product(Document):
     updatedAt = DateTimeField(required=True, help_text="The date and time when the product was last modified.")
 
     metafields = ListField(ReferenceField(Metafield), default=[], help_text="A list of metafields associated with the product.")
+    options = ListField(ReferenceField(ProductOption), default = [])
 
     # 自增字段
     descriptionVector = ListField(FloatField(), default=lambda: [0.0] * 1024)

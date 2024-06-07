@@ -208,6 +208,11 @@ class Metafield(Document):
     value = StringField(required=True, help_text="Information to be stored as metadata.")
 
 
+class ProductOption(Document):
+    shopify_id = StringField(required=True, unique=True, help_text="Globally unique identifier.")
+    position = IntField()
+    name = StringField()
+    values = ListField(StringField())
 
 class LocationAddress(EmbeddedDocument):
     address1 = StringField(help_text="The first line of the address for the location.")
