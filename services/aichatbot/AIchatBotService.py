@@ -445,7 +445,7 @@ def recommandGiftByTags(req):
                 "queryVector": query_vector,
     # "cosine": True,
                 "numCandidates": 50,
-                "limit": 10
+                "limit": 20
             }
         },
         {
