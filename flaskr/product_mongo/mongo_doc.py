@@ -164,6 +164,8 @@ class Product(Document):
     amount = IntField(help_text='Record the number of item sold for this product.')
     revenue = FloatField(help_text='Record the total revenue = amount * lineitem_price')
 
+    reviews = ListField(EmbeddedDocumentField(ProductReview), default=[])
+
     meta = {
         'indexes': [
             'vendor',    # Example of setting an index on vendor field
@@ -172,9 +174,6 @@ class Product(Document):
             'description',
         ]
     }
-
-
-
 
 
 

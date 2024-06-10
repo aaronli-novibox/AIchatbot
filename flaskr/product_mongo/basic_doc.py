@@ -214,6 +214,18 @@ class ProductOption(Document):
     name = StringField()
     values = ListField(StringField())
 
+class ProductReview(EmbeddedDocument):
+    state = StringField()
+    rating = IntField()
+    author = StringField()
+    email = EmailField()
+    location = StringField()
+    body = StringField()
+    imageUrl = StringField()
+    reply = StringField()
+    created_at = DateTimeField()
+    replied_at = DateTimeField()
+
 class LocationAddress(EmbeddedDocument):
     address1 = StringField(help_text="The first line of the address for the location.")
     address2 = StringField(help_text="The second line of the address for the location.")
