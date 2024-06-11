@@ -1,3 +1,4 @@
+import pprint
 from flask import g, current_app, jsonify
 from FlagEmbedding import FlagModel
 import numpy as np
@@ -272,23 +273,6 @@ def recommandGiftByList(req):
         parts
     ) + " How would you describe such a product? Please provide a description that captures the essence of these criteria."
 
-    stream = g.clientOpenAI.chat.completions.create(
-        model="gpt-4",
-        messages=[{
-            "role": "user",
-            "content": content
-        }],
-        stream=True,
-    )
-    project_string_ = ""
-    print("I guess you need the commodity that\n")
-    for chunk in stream:
-        if chunk.choices[0].delta.content is not None:
-            project_string_ = project_string_ + chunk.choices[0].delta.content
-            print(chunk.choices[0].delta.content, end='')
-
-    query_vector = emb_model.encode(project_string_).astype(np.float64).tolist()
-
     # 定义价格范围
     if budget == "<$20":
         price_min = 0
@@ -309,19 +293,40 @@ def recommandGiftByList(req):
 
     print(f"Price range: {price_min} to {price_max}")
 
-    # 构建聚合查询
-    query = [
-        {
+    results_list = []
+
+    while len(results_list) < 10:
+
+        stream = g.clientOpenAI.chat.completions.create(
+            model="gpt-4",
+            messages=[{
+                "role": "user",
+                "content": content
+            }],
+            stream=True,
+        )
+        project_string_ = ""
+        print("I guess you need the commodity that\n")
+
+        for chunk in stream:
+            if chunk.choices[0].delta.content is not None:
+                project_string_ = project_string_ + chunk.choices[
+                    0].delta.content
+                print(chunk.choices[0].delta.content, end='')
+
+        query_vector = emb_model.encode(project_string_).astype(
+            np.float64).tolist()
+
+        # 构建聚合查询
+        query = [{
             "$vectorSearch": {
                 "index": "vector_index",
                 "path": "descriptionVector",
                 "queryVector": query_vector,
-    # "cosine": True,
-                "numCandidates": 50,
-                "limit": 10
+                "numCandidates": 100,
+                "limit": 20
             }
-        },
-        {
+        }, {
             "$match": {
                 "priceRangeV2.minVariantPrice.currencyCode": "USD",
                 "priceRangeV2.maxVariantPrice.currencyCode": "USD",
@@ -333,27 +338,237 @@ def recommandGiftByList(req):
                 },
                 "status": "ACTIVE"
             }
-        },
-        {
+        }, {
             "$lookup": {
-                "from":
-                    "product_variant",    # The collection where the variants are stored.
-                "localField":
-                    "variants",    # The field in the products collection that holds the references.
-                "foreignField":
-                    "_id",    # The field in the variants collection that corresponds to the reference.
-                "as":
-                    "variantDetails"    # The field to populate with the results from the lookup.
+                "from": "product_variant",
+                "localField": "variants",
+                "foreignField": "_id",
+                "as": "variantDetails"
             }
-        },
-        {
+        }, {
+            "$lookup": {
+                "from": "product_options",
+                "localField": "options",
+                "foreignField": "_id",
+                "as": "optionsDetails"
+            }
+        }, {
+            "$lookup": {
+                "from": "metafield",
+                "localField": "metafields",
+                "foreignField": "_id",
+                "as": "metafieldsDetails"
+            }
+        }, {
             "$addFields": {
                 "similarityScore": {
                     "$meta": "vectorSearchScore"
+                },
+                "allVariantsUnavailable": {
+                    "$allElementsTrue": {
+                        "$map": {
+                            "input": "$variantDetails",
+                            "as": "variant",
+                            "in": {
+                                "$not": "$$variant.availableForSale"
+                            }
+                        }
+                    }
+                },
+                "ratingValue": {
+                    "$let": {
+                        "vars": {
+                            "filteredMetafields": {
+                                "$filter": {
+                                    "input": "$metafieldsDetails",
+                                    "as": "metafield",
+                                    "cond": {
+                                        "$and": [{
+                                            "$eq": [
+                                                "$$metafield.key", "ratingValue"
+                                            ]
+                                        }, {
+                                            "$eq": [
+                                                "$$metafield.namespace",
+                                                "vitals"
+                                            ]
+                                        }]
+                                    }
+                                }
+                            }
+                        },
+                        "in": {
+                            "$ifNull": [{
+                                "$arrayElemAt": [
+                                    "$$filteredMetafields.value", 0
+                                ]
+                            }, None]
+                        }
+                    }
+                },
+                "reviewCount": {
+                    "$let": {
+                        "vars": {
+                            "filteredMetafields": {
+                                "$filter": {
+                                    "input": "$metafieldsDetails",
+                                    "as": "metafield",
+                                    "cond": {
+                                        "$and": [{
+                                            "$eq": [
+                                                "$$metafield.key", "reviewCount"
+                                            ]
+                                        }, {
+                                            "$eq": [
+                                                "$$metafield.namespace",
+                                                "vitals"
+                                            ]
+                                        }]
+                                    }
+                                }
+                            }
+                        },
+                        "in": {
+                            "$ifNull": [{
+                                "$arrayElemAt": [
+                                    "$$filteredMetafields.value", 0
+                                ]
+                            }, 0]
+                        }
+                    }
+                },
+                "feature_test": {
+                    "$let": {
+                        "vars": {
+                            "filteredMetafields": {
+                                "$filter": {
+                                    "input": "$metafieldsDetails",
+                                    "as": "metafield",
+                                    "cond": {
+                                        "$and": [{
+                                            "$eq": [
+                                                "$$metafield.key",
+                                                "feature_test"
+                                            ]
+                                        }, {
+                                            "$eq": [
+                                                "$$metafield.namespace",
+                                                "custom"
+                                            ]
+                                        }]
+                                    }
+                                }
+                            }
+                        },
+                        "in": {
+                            "$ifNull": [{
+                                "$arrayElemAt": [
+                                    "$$filteredMetafields.value", 0
+                                ]
+                            }, None]
+                        }
+                    }
+                },
+                "specification_test": {
+                    "$let": {
+                        "vars": {
+                            "filteredMetafields": {
+                                "$filter": {
+                                    "input": "$metafieldsDetails",
+                                    "as": "metafield",
+                                    "cond": {
+                                        "$and": [{
+                                            "$eq": [
+                                                "$$metafield.key",
+                                                "specification_test"
+                                            ]
+                                        }, {
+                                            "$eq": [
+                                                "$$metafield.namespace",
+                                                "custom"
+                                            ]
+                                        }]
+                                    }
+                                }
+                            }
+                        },
+                        "in": {
+                            "$ifNull": [{
+                                "$arrayElemAt": [
+                                    "$$filteredMetafields.value", 0
+                                ]
+                            }, None]
+                        }
+                    }
+                },
+                "additional_notes_test": {
+                    "$let": {
+                        "vars": {
+                            "filteredMetafields": {
+                                "$filter": {
+                                    "input": "$metafieldsDetails",
+                                    "as": "metafield",
+                                    "cond": {
+                                        "$and": [{
+                                            "$eq": [
+                                                "$$metafield.key",
+                                                "additional_notes_test"
+                                            ]
+                                        }, {
+                                            "$eq": [
+                                                "$$metafield.namespace",
+                                                "custom"
+                                            ]
+                                        }]
+                                    }
+                                }
+                            }
+                        },
+                        "in": {
+                            "$ifNull": [{
+                                "$arrayElemAt": [
+                                    "$$filteredMetafields.value", 0
+                                ]
+                            }, None]
+                        }
+                    }
                 }
             }
-        },
-        {
+        }, {
+            "$match": {
+                "allVariantsUnavailable": False
+            }
+        }, {
+            "$group": {
+                "_id": None,
+                "filtered": {
+                    "$push": "$$ROOT"
+                },
+                "count": {
+                    "$sum": 1
+                }
+            }
+        }, {
+            "$project": {
+                "filtered": {
+                    "$cond": {
+                        "if": {
+                            "$gte": ["$count", 10]
+                        },
+                        "then": {
+                            "$slice": ["$filtered", 10]
+                        },
+                        "else": "$filtered"
+                    }
+                }
+            }
+        }, {
+            "$unwind": "$filtered"
+        }, {
+            "$replaceRoot": {
+                "newRoot": "$filtered"
+            }
+        }, {
             "$project": {
                 "_id": 0,
                 "description": 1,
@@ -371,6 +586,27 @@ def recommandGiftByList(req):
                 "price": {
                     "$arrayElemAt": ["$variantDetails.price", 0]
                 },
+                "reviews": 1,
+                "options": {
+                    "$map": {
+                        "input": "$optionsDetails",
+                        "as": "option",
+                        "in": {
+                            "position": "$$option.position",
+                            "name": "$$option.name",
+                            "values": "$$option.values"
+                        }
+                    }
+                },
+                "images": {
+                    "$reduce": {
+                        "input": "$variantDetails",
+                        "initialValue": [],
+                        "in": {
+                            "$concatArrays": ["$$value", ["$$this.image"]]
+                        }
+                    }
+                },
                 "variants": {
                     "$map": {
                         "input": "$variantDetails",
@@ -378,19 +614,26 @@ def recommandGiftByList(req):
                         "in": {
                             "shopify_id": "$$variant.shopify_id",
                             "available": "$$variant.availableForSale",
-                            "price": "$$variant.price"
+                            "price": "$$variant.price",
+                            "compareAtPrice": "$$variant.compareAtPrice",
+                            "image": "$$variant.image"
                         }
                     }
-                }
+                },
+                "ratingValue": 1,
+                "reviewCount": 1,
+                "feature": "$feature_test",
+                "specification": "$specification_test",
+                "additional_notes": "$additioncal_notes_test"
             }
-        }
-    ]
+        }]
 
-    # 执行查询
-    results = Product.objects.aggregate(query)
+        # 执行查询
+        new_results = Product.objects.aggregate(query)
 
-    # 假设 results 是从 MongoDB 查询得到的结果
-    results_list = list(results)    # 将 CommandCursor 对象转换为列表
+        # 假设 results 是从 MongoDB 查询得到的结果
+        results_list.extend(list(new_results))    # 将 CommandCursor 对象转换为列表
+    print(results_list)
 
     # 成功返回
     return {
