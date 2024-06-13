@@ -89,7 +89,8 @@ class Influencer(Document):
 
     orders = ListField(EmbeddedDocumentField(OrderInfo), default=[])
 
-    order_nums = DecimalField(default=0)    # 订单中商品的数量
+    order_nums = IntField(default=0)  # 总计的订单数量
+    product_nums = DecimalField(default=0)    # 订单中商品的数量
     total_commission = FloatField(default=0)    # 总佣金
 
     is_email_confirmed = BooleanField()
@@ -181,11 +182,12 @@ class Influencer(Document):
         if not found and (order.displayFinancialStatus.value == "PAID" or order.displayFinancialStatus.value == "PARTIALLY_REFUNDED") :
             order_info = OrderInfo(order=order)
             self.orders.append(order_info)
+            self.order_nums +=1
 
             for li in order.lineitem:
 
                 # 增加class中的order_nums
-                self.order_nums += li.lineitem_quantity
+                self.product_nums += li.lineitem_quantity
 
                 # 找到对应的product
                 product = li.product.fetch() if li.product else None
@@ -193,6 +195,8 @@ class Influencer(Document):
                     # 更新product的amount
                     product.amount += li.lineitem_quantity
                     product.revenue += li.lineitem_quantity * li.lineitem_price
+
+                    order.quantity += li.lineitem_quantity
 
                     # 以下是签约的产品
                     product_details = self.find_product(product.id)
@@ -203,6 +207,7 @@ class Influencer(Document):
                             100) * li.lineitem_quantity * li.lineitem_price - li.lineitem_discount
 
                         order_info.order_commission_fee += li.commission_fee
+                        order.order_commission_fee += li.commission_fee
 
                         product_details.commission_fee += li.commission_fee
 
@@ -214,19 +219,26 @@ class Influencer(Document):
                         li.commission_fee = 0.08 * li.lineitem_quantity * li.lineitem_price - li.lineitem_discount
 
                         order_info.order_commission_fee += li.commission_fee
+                        order.order_commission_fee += li.commission_fee
+
                         product_details.commission_fee += li.commission_fee
                         # 增加class中的total_commission
                         self.total_commission += li.commission_fee
 
                     li.save()
+                    order.save(validate=False)
 
         if found and order.displayFinancialStatus.value == "REFUND":
             for li in order.lineitem:
-
+                self.order_nums -=1
                 # 减去class中的order_nums
-                self.order_nums -= li.lineitem_quantity
+                self.product_nums -= li.lineitem_quantity
+
+                order.quantity -= li.lineitem_quantity
+                order.order_commission_fee -= li.commission_fee
 
                 order_info.order_commission_fee -= li.commission_fee
+
                 self.total_commission -= li.commission_fee
 
                 # 找到对应的product
@@ -240,6 +252,7 @@ class Influencer(Document):
 
                 li.commission_fee == 0
                 li.save()
+                order.save(validate=False)
 
         self.save()
 

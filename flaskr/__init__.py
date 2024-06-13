@@ -30,13 +30,15 @@ import re
 import hmac
 import hashlib
 from urllib.parse import urlencode
+from influencers import track_orders
+
 
 def load_model() -> FlagModel:
     # Load the model
     emb_model = FlagModel(
         os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            'services/aichatbot/models/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09'
+            'services/aichatbot/mols/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09'
         ),
         query_instruction_for_retrieval=
         "Generate a representation for this sentence for retrieving items:",
@@ -101,6 +103,8 @@ def create_app(test_config=None):
     s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
     connect('dev', alias='default', host=app.config['MONGO_URI'])
+
+    tracker = track_orders()
 
     # fmt: on
 
@@ -262,7 +266,7 @@ def create_app(test_config=None):
         Influencer(**user_data).save()
 
         return jsonify({'message': 'Registration successful'}), 201
-    
+
     @app.route('/resend', methods=['POST'])
     def resend_verification_email():
         data = request.get_json()
@@ -271,18 +275,17 @@ def create_app(test_config=None):
         token = s.dumps(email, salt='email-confirm')
         confirm_url = f"{app.config['BASEURL']}/session/confirm/{token}"
         msg = Message("Please Verify Your Email",
-                        sender=app.config['MAIL_USERNAME'],
-                        recipients=[email])
+                      sender=app.config['MAIL_USERNAME'],
+                      recipients=[email])
         msg.html = render_template('email_verfication.html',
-                                    link=confirm_url,
-                                    username=first_name)
+                                   link=confirm_url,
+                                   username=first_name)
         try:
             mail.send(msg)
             return jsonify({'message': 'Reset Email successful'}), 200
         except Exception as e:
             print(e)
-            return jsonify({'message': 'Email sending failed'
-                           }), 500 
+            return jsonify({'message': 'Email sending failed'}), 500
 
     @app.route('/get_profile_photo/<influencer_name>', methods=['GET'])
     def get_profile_photo(influencer_name):
@@ -296,7 +299,7 @@ def create_app(test_config=None):
             )
         else:
             return jsonify({'error': 'No photo found'}), 404
-        
+
     @app.route('/generate_social_post_url', methods=['GET'])
     def generate_social_post_url():
         platform = request.args.get('platform')
@@ -318,13 +321,14 @@ def create_app(test_config=None):
 
         elif platform == 'twitter':
             post_url = 'https://twitter.com/intent/tweet?' + urlencode({
-                'text': f'Grab this deal!  Use {promo_code} for 10% off your next purchase at thenovibox.com. Shop now! '
+                'text':
+                    f'Grab this deal!  Use {promo_code} for 10% off your next purchase at thenovibox.com. Shop now! '
             })
             text_to_copy = f"Grab this deal!  Use【{promo_code}】for 10% off your next purchase at thenovibox.com. Shop now! "
 
         else:
             return jsonify({'error': 'Unsupported platform'}), 400
-        
+
         return jsonify({'url': post_url, 'text': text_to_copy})
 
     @app.route('/confirm/<token>', methods=['GET'])
@@ -381,8 +385,8 @@ def create_app(test_config=None):
                 data.get('interests', influencer.get('interest')),
         }
 
-        update_result = Influencer.objects(influencer_name=influencer_name).update_one(
-            **updated_data)
+        update_result = Influencer.objects(
+            influencer_name=influencer_name).update_one(**updated_data)
 
         # 检查是否有文档被更新
         if update_result == 0:
@@ -399,13 +403,14 @@ def create_app(test_config=None):
         data = request.get_json()
         influencer_identifier = data.get('email') or data.get('promocode')
         password = data.get('password')
-        
+
         if influencer_identifier == app.config['BDEMAIL']:
             return jsonify({'error': 'Please use Promo Code to log'}), 415
 
         user = Influencer.objects(
             Q(influencer_email=influencer_identifier) |
-            Q(promo_code=influencer_identifier)).exclude('id', 'orders', 'product').first()
+            Q(promo_code=influencer_identifier)).exclude(
+                'id', 'orders', 'product').first()
 
         if not user:
             return jsonify({'error': 'Email or promocode not found'}), 404
@@ -438,7 +443,7 @@ def create_app(test_config=None):
             'user': user_data,
             'token': token
         }), 200
-    
+
     def serialize_object(obj):
         if isinstance(obj, ObjectId):
             return str(obj)
@@ -451,9 +456,7 @@ def create_app(test_config=None):
         if isinstance(obj, list):
             return [serialize_object(item) for item in obj]
         if isinstance(obj, Image):
-            return {
-                'url': obj.url
-            }
+            return {'url': obj.url}
         return obj
 
     @app.route('/checkusername', methods=['POST'])
@@ -532,7 +535,7 @@ def create_app(test_config=None):
 
         if influencer_name is None:
             return jsonify({'message': 'Influencer name is required'}), 400
-        
+
         # Check if user exist
         influencer_data = Influencer.objects.get(
             influencer_name=influencer_name)
@@ -542,9 +545,9 @@ def create_app(test_config=None):
         role = data.get('role')
         if role != 'admin':
             return jsonify({'message': 'Permission Denied'}), 500
-        
+
         month = data.get('month')
-        
+
         all_influencers = Influencer.objects(role__ne='admin').count()
 
         last_month_sales = influencer_data.get_last_month_sales(month)
@@ -571,7 +574,7 @@ def create_app(test_config=None):
         influencer_name = data.get('influencer_name')
         if influencer_name is None:
             return jsonify({'message': 'Influencer name is required'}), 400
-        
+
         # Check if user exist
         influencer_data = Influencer.objects.get(
             influencer_name=influencer_name)
@@ -581,18 +584,18 @@ def create_app(test_config=None):
         # role = data.get('role')    # 这是用来干什么的？
         range = data.get('range')
         month = data.get('month')
-        
+
         # Total earnings in User dashboard
         total_earnings = influencer_data.total_commission
         monthly_stats = influencer_data.get_last_month_sold_products(month)
         last_month_orders = monthly_stats['total_quantity']
         last_month_earning = monthly_stats['total_revenue']
-        
+
         top_products = []
         for time in range:
             result = influencer_data.get_top_ten_selling_products(time)
-            top_products.append({time : result})
-        
+            top_products.append({time: result})
+
         return jsonify({
             'cards': {
                 'total_earnings': total_earnings,
@@ -601,7 +604,6 @@ def create_app(test_config=None):
             },
             'top_products': top_products
         }), 200
-
 
     # Forgot password endpoint
     @app.route('/forgot_password', methods=['POST'])
@@ -617,7 +619,10 @@ def create_app(test_config=None):
             return jsonify({'error': 'User not found'}), 404
 
         if influencer_email == app.config['BDEMAIL']:
-            return jsonify({'error': 'Please contact the administrator to change the password!'}), 415
+            return jsonify({
+                'error':
+                    'Please contact the administrator to change the password!'
+            }), 415
 
         token = s.dumps(influencer_email, salt='email-reset')
         msg = Message('Password Reset Request',
@@ -700,7 +705,9 @@ def create_app(test_config=None):
 
         # Filter products based on search_term if provided
         products_list = getInflencerProducts(influencer_name, search_term)
-        serialized_products = [serialize_object(product) for product in products_list]
+        serialized_products = [
+            serialize_object(product) for product in products_list
+        ]
 
         return jsonify({'products': serialized_products}), 200
 
@@ -711,14 +718,16 @@ def create_app(test_config=None):
     def get_bd_influencers_products():
         data = request.get_json()
         role = data.get('role')
-        search_term = data.get('search', '')  # 暂时改为不设置默认值，有问题指正我
+        search_term = data.get('search', '')    # 暂时改为不设置默认值，有问题指正我
 
         if not role:
             return jsonify({'message': 'Role name is required'}), 400
 
         # need to confirm the details
         products_list = get_all_influencer_products(search_term)
-        serialized_products = [serialize_object(product) for product in products_list]
+        serialized_products = [
+            serialize_object(product) for product in products_list
+        ]
 
         return jsonify({'products': serialized_products}), 200
 
@@ -748,7 +757,6 @@ def create_app(test_config=None):
         all_orders = Influencer.get_all_orderlist(search_term)
         return jsonify({'orders': all_orders}), 200
 
-
     @app.route('/influencers')
     def getInfluencersInfoFromMongoDB():
 
@@ -770,10 +778,12 @@ def create_app(test_config=None):
         status = data.get('status', '')
 
         if role == 'admin':
-            influencers = search_influencerList(search=search_term, status=status)
+            influencers = search_influencerList(search=search_term,
+                                                status=status)
             for influencer in influencers:
                 if 'avatar' in influencer:
-                    influencer['avatar'] = base64.b64encode(influencer['avatar']).decode('utf-8')
+                    influencer['avatar'] = base64.b64encode(
+                        influencer['avatar']).decode('utf-8')
 
             return jsonify({'influencers': influencers}), 200
         else:
@@ -786,8 +796,7 @@ def create_app(test_config=None):
         influencer_name = data.get('influencer_name')
 
         user = Influencer.objects(influencer_name=influencer_name).exclude(
-                'id', 'password', 'orders',
-                'product').first()
+            'id', 'password', 'orders', 'product').first()
         if not user:
             return jsonify({'message': 'Influencer not found'}), 404
 
@@ -805,6 +814,16 @@ def create_app(test_config=None):
             else:
                 user_data[key] = value
         return jsonify({'data': user_data}), 200
+
+    @app.route('/last30', methods=['GET'])
+    def last30():
+
+        return tracker.result_30
+
+    @app.route('/last60', methods=['GET'])
+    def last60():
+
+        return tracker.result_60
 
     #########################################################
     #################### aichatbot service ##################
