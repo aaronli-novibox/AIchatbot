@@ -38,7 +38,7 @@ def load_model() -> FlagModel:
     emb_model = FlagModel(
         os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            'services/aichatbot/mols/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09'
+            'services/aichatbot/models/models--BAAI--bge-large-en-v1.5/snapshots/d4aa6901d3a41ba39fb536a557fa166f842b0e09'
         ),
         query_instruction_for_retrieval=
         "Generate a representation for this sentence for retrieving items:",
