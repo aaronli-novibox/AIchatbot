@@ -30,7 +30,7 @@ import re
 import hmac
 import hashlib
 from urllib.parse import urlencode
-from influencers import track_orders
+from flaskr.influencers import track_orders
 
 
 def load_model() -> FlagModel:
