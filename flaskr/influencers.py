@@ -75,4 +75,4 @@ class track_orders:
             }
         ]
 
-        return list(Order.aggregate(pipeline))
+        return list(Order.objects.aggregate(pipeline))
