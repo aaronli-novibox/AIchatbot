@@ -21,6 +21,7 @@ from flaskr.shp import *
 from flaskr.oai import *
 from flaskr.db import get_mongo_db, close_db
 from flask_mail import Mail, Message
+import threading
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 
 from mongoengine import connect, Q
@@ -211,12 +212,16 @@ def create_app(test_config=None):
 
             token = s.dumps(email, salt='email-confirm')
             confirm_url = f"{app.config['BASEURL']}/session/confirm/{token}"
-            msg = Message("Please Verify Your Email",
-                          sender=app.config['MAIL_USERNAME'],
-                          recipients=[email])
-            msg.html = render_template('email_verfication.html',
-                                       link=confirm_url,
-                                       username=first_name)
+            subject = "Please Verify Your Email"
+            recipients = [email]
+            html_body = render_template('email_verfication.html',
+                                        link=confirm_url,
+                                        username=first_name)
+            msg = Message(subject, recipients=recipients, html=html_body)
+
+            # 使用线程异步发送邮件
+            thread = threading.Thread(target=send_async_email, args=[app, msg])
+            thread.start()
         else:
             confirm = True
             msg = None
@@ -266,6 +271,10 @@ def create_app(test_config=None):
         Influencer(**user_data).save()
 
         return jsonify({'message': 'Registration successful'}), 201
+    # 异步发送邮件
+    def send_async_email(app, msg):
+        with app.app_context():
+            mail.send(msg)
 
     @app.route('/resend', methods=['POST'])
     def resend_verification_email():
