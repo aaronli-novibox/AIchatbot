@@ -272,6 +272,7 @@ def create_app(test_config=None):
         Influencer(**user_data).save()
 
         return jsonify({'message': 'Registration successful'}), 201
+
     # 异步发送邮件
     def send_async_email(app, msg):
         with app.app_context():
