@@ -105,6 +105,7 @@ def create_app(test_config=None):
     connect('dev', alias='default', host=app.config['MONGO_URI'])
 
     tracker = track_orders()
+    print(tracker.result_30)
 
     # fmt: on
 
@@ -818,12 +819,12 @@ def create_app(test_config=None):
     @app.route('/last30', methods=['GET'])
     def last30():
 
-        return tracker.result_30
+        return jsonify({'data': tracker.result_30}), 200
 
     @app.route('/last60', methods=['GET'])
     def last60():
 
-        return tracker.result_60
+        return jsonify({'datat': tracker.result_60}), 200
 
     #########################################################
     #################### aichatbot service ##################
