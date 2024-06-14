@@ -836,6 +836,11 @@ def create_app(test_config=None):
 
         return jsonify({'datat': tracker.result_60}), 200
 
+    @app.route('/last90', methods=['GET'])
+    def last60():
+
+        return jsonify({'datat': tracker.result_90}), 200
+
     #########################################################
     #################### aichatbot service ##################
     #########################################################

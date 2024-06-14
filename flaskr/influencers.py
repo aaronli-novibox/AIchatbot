@@ -9,6 +9,7 @@ class track_orders:
 
         self.result_30 = self.retrive(30)
         self.result_60 = self.retrive(60)
+        self.result_90 = self.retrive(90)
 
     def retrive(self, days=30):
         thirty_days_ago = datetime.now() - timedelta(days=days)
