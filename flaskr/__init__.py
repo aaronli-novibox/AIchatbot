@@ -826,20 +826,20 @@ def create_app(test_config=None):
                 user_data[key] = value
         return jsonify({'data': user_data}), 200
 
-    @app.route('/last30', methods=['GET'])
-    def last30():
+    # @app.route('/last30', methods=['GET'])
+    # def last30():
 
-        return jsonify({'data': tracker.result_30}), 200
+    #     return jsonify({'data': tracker.result_30}), 200
 
-    @app.route('/last60', methods=['GET'])
-    def last60():
+    # @app.route('/last60', methods=['GET'])
+    # def last60():
 
-        return jsonify({'data': tracker.result_60}), 200
+    #     return jsonify({'data': tracker.result_60}), 200
 
-    @app.route('/last90', methods=['GET'])
-    def last60():
+    # @app.route('/last90', methods=['GET'])
+    # def last60():
 
-        return jsonify({'data': tracker.result_90}), 200
+    #     return jsonify({'data': tracker.result_90}), 200
 
     #########################################################
     #################### aichatbot service ##################
