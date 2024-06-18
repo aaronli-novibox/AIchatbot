@@ -105,8 +105,8 @@ def create_app(test_config=None):
 
     connect('dev', alias='default', host=app.config['MONGO_URI'])
 
-    tracker = track_orders()
-    print(tracker.result_30)
+    # tracker = track_orders()
+    # print(tracker.result_30)
 
     # fmt: on
 
