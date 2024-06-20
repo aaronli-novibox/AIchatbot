@@ -155,6 +155,7 @@ class Product(Document):
     updatedAt = DateTimeField(required=True, help_text="The date and time when the product was last modified.")
 
     metafields = ListField(ReferenceField(Metafield), default=[], help_text="A list of metafields associated with the product.")
+    options = ListField(ReferenceField(ProductOption), default = [])
 
     # 自增字段
     descriptionVector = ListField(FloatField(), default=lambda: [0.0] * 1024)
@@ -162,6 +163,8 @@ class Product(Document):
     handle = StringField(help_text="A human-friendly unique string for the product.")
     amount = IntField(help_text='Record the number of item sold for this product.')
     revenue = FloatField(help_text='Record the total revenue = amount * lineitem_price')
+
+    reviews = ListField(EmbeddedDocumentField(ProductReview), default=[])
 
     meta = {
         'indexes': [
@@ -171,9 +174,6 @@ class Product(Document):
             'description',
         ]
     }
-
-
-
 
 
 
@@ -340,6 +340,10 @@ class Order(Document):
     updatedAt = DateTimeField(required=True, help_text="The date and time when the order was modified last.")
 
     lineitem = ListField(ReferenceField('LineItem'), required=True, help_text="A list of line items in the order.")
+
+    # 新增字段
+    order_commission_fee = DecimalField(default=0) # 用于计算订单给influencer的分红
+    quantity = IntField(default = 0) # 用于计算订单中商品数量
 
 
 # class Order(Document):

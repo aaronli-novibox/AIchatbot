@@ -14,6 +14,8 @@ class InfluencerProduct(EmbeddedDocument):
     product_contract_start = DateTimeField()
     product_contract_end = DateTimeField()
     video_exposure = StringField()
+    review_status = StringField()
+    pre_commission = StringField()
 
     def clean(self):
         if self.product_contract_end < self.product_contract_start:
@@ -87,7 +89,8 @@ class Influencer(Document):
 
     orders = ListField(EmbeddedDocumentField(OrderInfo), default=[])
 
-    order_nums = DecimalField(default=0)    # 订单中商品的数量
+    order_nums = IntField(default=0)  # 总计的订单数量
+    product_nums = DecimalField(default=0)    # 订单中商品的数量
     total_commission = FloatField(default=0)    # 总佣金
 
     is_email_confirmed = BooleanField()
@@ -104,8 +107,8 @@ class Influencer(Document):
                 product_order['id'] = li.lineitem_sku
                 product_order['unit_price'] = float(li.lineitem_price)
                 product_order['status'] = order.displayFinancialStatus.value if order.displayFinancialStatus else None  # Convert to string
-                product_order['paid_at'] = order.createdAt.strftime("%Y-%m-%d") if order.createdAt else 'N/A' 
-                product_order['fulfilled_at'] = order.closedAt.strftime("%Y-%m-%d") if order.closedAt else 'N/A' 
+                product_order['paid_at'] = order.createdAt.strftime("%Y-%m-%d") if order.createdAt else 'N/A'
+                product_order['fulfilled_at'] = order.closedAt.strftime("%Y-%m-%d") if order.closedAt else 'N/A'
                 product_order['purchased'] = li.lineitem_quantity
                 product_order['total_price'] = float(li.lineitem_quantity * li.lineitem_price)
                 product_order['commission_rate'] = li.commission
@@ -116,7 +119,7 @@ class Influencer(Document):
                 if product:
                     product_order['onlineStoreUrl'] = product.onlineStoreUrl if product.onlineStoreUrl else ''
                     product_order['featuredImage'] = product.featuredImage.url if product.featuredImage else None
-                    
+
                     # Normalize and filter search term
                     normalized_search_term = search_term.strip().lower()
                     if not normalized_search_term or normalized_search_term in product_order['name'].lower():
@@ -179,11 +182,12 @@ class Influencer(Document):
         if not found and (order.displayFinancialStatus.value == "PAID" or order.displayFinancialStatus.value == "PARTIALLY_REFUNDED") :
             order_info = OrderInfo(order=order)
             self.orders.append(order_info)
+            self.order_nums +=1
 
             for li in order.lineitem:
 
                 # 增加class中的order_nums
-                self.order_nums += li.lineitem_quantity
+                self.product_nums += li.lineitem_quantity
 
                 # 找到对应的product
                 product = li.product.fetch() if li.product else None
@@ -192,17 +196,20 @@ class Influencer(Document):
                     product.amount += li.lineitem_quantity
                     product.revenue += li.lineitem_quantity * li.lineitem_price
 
+                    order.quantity += li.lineitem_quantity
+
                     # 以下是签约的产品
                     product_details = self.find_product(product.id)
                     if product_details and product_details.product_contract_start <= order.createdAt and product_details.product_contract_end >= order.createdAt:
-                        
+
                         li.commission = product_details.commission
                         li.commission_fee =(float(product_details.commission.replace('%', '')) /
                             100) * li.lineitem_quantity * li.lineitem_price - li.lineitem_discount
 
                         order_info.order_commission_fee += li.commission_fee
+                        order.order_commission_fee += li.commission_fee
 
-                        product_details.commission_fee += li.commission_fee 
+                        product_details.commission_fee += li.commission_fee
 
                         # 增加class中的total_commission
                         self.total_commission += li.commission_fee
@@ -212,21 +219,28 @@ class Influencer(Document):
                         li.commission_fee = 0.08 * li.lineitem_quantity * li.lineitem_price - li.lineitem_discount
 
                         order_info.order_commission_fee += li.commission_fee
-                        product_details.commission_fee += li.commission_fee 
+                        order.order_commission_fee += li.commission_fee
+
+                        product_details.commission_fee += li.commission_fee
                         # 增加class中的total_commission
                         self.total_commission += li.commission_fee
-                   
+
                     li.save()
+                    order.save(validate=False)
 
         if found and order.displayFinancialStatus.value == "REFUND":
             for li in order.lineitem:
-
+                self.order_nums -=1
                 # 减去class中的order_nums
-                self.order_nums -= li.lineitem_quantity
+                self.product_nums -= li.lineitem_quantity
+
+                order.quantity -= li.lineitem_quantity
+                order.order_commission_fee -= li.commission_fee
 
                 order_info.order_commission_fee -= li.commission_fee
+
                 self.total_commission -= li.commission_fee
-                
+
                 # 找到对应的product
                 product = li.product.fetch() if li.product else None
                 if product:
@@ -236,8 +250,9 @@ class Influencer(Document):
                     if product_details:
                         product_details.commission_fee -= li.commission_fee
 
-                li.commission_fee == 0  
+                li.commission_fee == 0
                 li.save()
+                order.save(validate=False)
 
         self.save()
 
@@ -323,11 +338,11 @@ class Influencer(Document):
             'total_quantity': total_quantity,
             'total_revenue': total_revenue  # Convert Decimal to float for JSON serialization
         }
-    
+
     def get_last_month_sales(self, month):
         if self.role != 'admin':
-            return False 
-        
+            return False
+
         start_date, end_date = get_start_and_end_dates(month)
         all_orders = Order.objects()
         total_sales = 0
@@ -354,13 +369,13 @@ class Influencer(Document):
 def get_start_and_end_dates(month):
     # Parse the start date
     start_date = datetime.strptime(month, "%Y-%m")
-    
+
     # Get the last day of the month
     last_day = calendar.monthrange(start_date.year, start_date.month)[1]
-    
+
     # Create the end date
     end_date = start_date.replace(day=last_day) + timedelta(days=1)
-    
+
     return start_date, end_date
 
 
@@ -424,4 +439,3 @@ def get_start_and_end_dates(month):
 
 # else:
 #     print("Influencer not found.")
-

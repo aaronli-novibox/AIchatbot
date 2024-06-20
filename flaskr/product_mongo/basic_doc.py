@@ -208,6 +208,23 @@ class Metafield(Document):
     value = StringField(required=True, help_text="Information to be stored as metadata.")
 
 
+class ProductOption(Document):
+    shopify_id = StringField(required=True, unique=True, help_text="Globally unique identifier.")
+    position = IntField()
+    name = StringField()
+    values = ListField(StringField())
+
+class ProductReview(EmbeddedDocument):
+    state = StringField()
+    rating = IntField()
+    author = StringField()
+    email = EmailField()
+    location = StringField()
+    body = StringField()
+    imageUrl = StringField()
+    reply = StringField()
+    created_at = DateTimeField()
+    replied_at = DateTimeField()
 
 class LocationAddress(EmbeddedDocument):
     address1 = StringField(help_text="The first line of the address for the location.")
@@ -275,7 +292,7 @@ class LineItem(Document):
     product = LazyReferenceField('Product')
     order = LazyReferenceField('Order')
     variant = LazyReferenceField('ProductVariant')
-    commission_fee = FloatField(required=True, help_text="The commission fee = price*quantity*commission")
+    commission_fee = FloatField(required=True, help_text="The commission fee = price*quantity*commission", default=0)
     commission = StringField(help_text='commission of commission fee')
 
 
