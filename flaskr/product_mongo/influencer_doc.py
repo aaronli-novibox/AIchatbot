@@ -339,12 +339,16 @@ class Influencer(Document):
                     print(order.id)
         return total_sales
     
-    def get_total_orders(self, month):
+    def get_last_month_orders(self, month):
         if self.role != 'admin':
             return False 
-        
-        _, end_date = get_start_and_end_dates(month)
-        total_orders = Order.objects(createdAt__lt=end_date).count()
+
+        start_date, end_date = get_start_and_end_dates(month)
+        total_orders = Order.objects(
+            createdAt__gte=start_date,
+            createdAt__lt=end_date,
+            displayFinancialStatus__in=['PAID', 'PARTIALLY_REFUNDED']
+        ).count()
         return total_orders
 
 def get_start_and_end_dates(month):

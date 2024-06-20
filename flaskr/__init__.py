@@ -549,7 +549,7 @@ def create_app(test_config=None):
 
         last_month_sales = influencer_data.get_last_month_sales(month)
 
-        all_orders = influencer_data.get_total_orders(month)
+        last_month_orders = influencer_data.get_last_month_orders(month)
 
         products_list = get_top_three_selling_products()
         print(products_list)
@@ -558,7 +558,7 @@ def create_app(test_config=None):
             'cards': {
                 'all_influencers': all_influencers,
                 'last_month_sales': last_month_sales,
-                'all_orders': all_orders
+                'last_month_orders': last_month_orders
             },
             'products': products_list,
             'influencers': 0
