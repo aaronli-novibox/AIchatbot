@@ -17,7 +17,7 @@ class track_orders:
         dates = [
             (thirty_days_ago + timedelta(days=i)).date() for i in range(days)
         ]
-        pipeline = [
+        pipeline = pipeline = pipeline = [
             {
                 "$match": {
                     "closedAt": {
@@ -66,10 +66,35 @@ class track_orders:
                         }
                     },
                     "total_orders": 1,
+                    "unique_discount_codes": {
+                        "$ifNull": ["$unique_discount_codes", []]
+                    },
+                    "total_commission": 1,
+                    "total_quantity": 1
+                }
+            },
+            {
+                "$project": {
+                    "date": 1,
+                    "total_orders": 1,
                     "total_discount_codes": {
                         "$size": {
                             "$reduce": {
-                                "input": "$unique_discount_codes",
+                                "input": {
+                                    "$map": {
+                                        "input": "$unique_discount_codes",
+                                        "as": "code",
+                                        "in": {
+                                            "$cond": {
+                                                "if": {
+                                                    "$isArray": "$$code"
+                                                },
+                                                "then": "$$code",
+                                                "else": ["$$code"]
+                                            }
+                                        }
+                                    }
+                                },
                                 "initialValue": [],
                                 "in": {
                                     "$setUnion": ["$$value", "$$this"]
