@@ -433,7 +433,8 @@ def get_all_products_mongodb(influencer_instance, search_term=''):
 
     return product_list
 
-def get_top_three_selling_products():
+def get_top_three_selling_products(month):
+    start_date, end_date = get_start_and_end_dates(month)
     # Find top three selling products
     top_products = Product.objects().order_by('-amount', '-revenue').limit(3)
     products = []
@@ -446,3 +447,65 @@ def get_top_three_selling_products():
         one_product['onlineStoreUrl'] = product.onlineStoreUrl
         products.append(one_product)
     return products
+
+def get_top_three_influencer(month):
+    start_date, end_date = get_start_and_end_dates(month)
+    # Define the pipeline
+    pipeline = [
+        {
+            '$match': {
+                'createdAt': {'$gte': start_date, '$lt': end_date},
+                'displayFinancialStatus': {'$in': ['PAID', 'PARTIALLY_REFUNDED']}
+            }
+        },
+        {
+            '$addFields': {
+                'firstDiscountCode': {'$arrayElemAt': ['$discountCodes', 0]}
+            }
+        },
+        {
+            '$match': {
+                'firstDiscountCode': {'$exists': True, '$ne': None}
+            }
+        },
+        {
+            '$group': {
+                '_id': '$firstDiscountCode',
+                'totalQuantity': {'$sum': '$quantity'},
+                'totalAmount': {'$sum': '$currentTotalPriceSet.shopMoney.amount'}
+            }
+        },
+        {
+            '$sort': {'totalQuantity': -1}
+        },
+        {
+            '$limit': 3
+        }
+    ]
+    
+    # Run the aggregation pipeline
+    results = Order.objects.aggregate(*pipeline)
+    influencers = []
+    for res in results:
+        inf = {}
+        influencer = Influencer.objects(promo_code=res['_id']).first()
+        if influencer:
+            inf['name'] = influencer.influencer_name
+        else:
+            continue
+        inf['unit_sold'] = res['totalQuantity']
+        inf['revenue'] = res['totalAmount']
+        influencers.append(inf)
+        print(res['_id'])
+    return influencers
+
+
+def get_last_month_orders(month):
+        start_date, end_date = get_start_and_end_dates(month)
+        total_orders = Order.objects(
+            createdAt__gte=start_date,
+            createdAt__lt=end_date,
+            displayFinancialStatus__in=['PAID', 'PARTIALLY_REFUNDED']
+        )
+        total_quantity = sum(order.quantity for order in total_orders)
+        return total_orders.count(), total_quantity

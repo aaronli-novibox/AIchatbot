@@ -554,28 +554,35 @@ def create_app(test_config=None):
             return jsonify({'error': 'Influencer not found'}), 404
 
         role = data.get('role')
-        if role != 'admin':
+        if role != 'admin' or influencer_data.role != 'admin':
             return jsonify({'message': 'Permission Denied'}), 500
 
+        range = data.get('range')
         month = data.get('month')
 
         all_influencers = Influencer.objects(role__ne='admin').count()
 
         last_month_sales = influencer_data.get_last_month_sales(month)
 
-        last_month_orders = influencer_data.get_last_month_orders(month)
+        last_month_orders, last_month_products_sold = get_last_month_orders(month)
 
-        products_list = get_top_three_selling_products()
-        print(products_list)
+        top_products = []
+        top_influencers = []
+        for time in range:
+            result = get_top_three_influencer(time)
+            top_influencers.append({time: result})
+        print(top_influencers)
+        products_list = get_top_three_selling_products(month)
 
         return jsonify({
             'cards': {
                 'all_influencers': all_influencers,
                 'last_month_sales': last_month_sales,
-                'last_month_orders': last_month_orders
+                'last_month_orders': last_month_orders,
+                'last_month_products_sold': last_month_products_sold
             },
             'products': products_list,
-            'influencers': 0
+            'influencers': top_influencers
         }), 200
 
     @app.route('/userdash', methods=['POST'])

@@ -188,6 +188,7 @@ class Influencer(Document):
 
                 # 增加class中的order_nums
                 self.product_nums += li.lineitem_quantity
+                order.quantity += li.lineitem_quantity
 
                 # 找到对应的product
                 product = li.product.fetch() if li.product else None
@@ -196,15 +197,13 @@ class Influencer(Document):
                     product.amount += li.lineitem_quantity
                     product.revenue += li.lineitem_quantity * li.lineitem_price
 
-                    order.quantity += li.lineitem_quantity
-
                     # 以下是签约的产品
                     product_details = self.find_product(product.id)
                     if product_details and product_details.product_contract_start <= order.createdAt and product_details.product_contract_end >= order.createdAt:
 
                         li.commission = product_details.commission
                         li.commission_fee =(float(product_details.commission.replace('%', '')) /
-                            100) * li.lineitem_quantity * li.lineitem_price - li.lineitem_discount
+                            100) * li.lineitem_quantity * li.lineitem_price
 
                         order_info.order_commission_fee += li.commission_fee
                         order.order_commission_fee += li.commission_fee
@@ -216,7 +215,7 @@ class Influencer(Document):
 
                     else:
                         li.commission = '8%'
-                        li.commission_fee = 0.08 * li.lineitem_quantity * li.lineitem_price - li.lineitem_discount
+                        li.commission_fee = 0.08 * li.lineitem_quantity * li.lineitem_price
 
                         order_info.order_commission_fee += li.commission_fee
                         order.order_commission_fee += li.commission_fee
@@ -349,22 +348,10 @@ class Influencer(Document):
         for order in all_orders:
             if start_date <= order.createdAt < end_date and (order.displayFinancialStatus.value == "PAID" or order.displayFinancialStatus.value == "PARTIALLY_REFUNDED"):
                 try:
-                    total_sales += order.currentSubtotalPriceSet.shopMoney.amount
+                    total_sales += order.currentTotalPriceSet.shopMoney.amount
                 except:
                     print(order.id)
         return total_sales
-    
-    def get_last_month_orders(self, month):
-        if self.role != 'admin':
-            return False 
-
-        start_date, end_date = get_start_and_end_dates(month)
-        total_orders = Order.objects(
-            createdAt__gte=start_date,
-            createdAt__lt=end_date,
-            displayFinancialStatus__in=['PAID', 'PARTIALLY_REFUNDED']
-        ).count()
-        return total_orders
 
 def get_start_and_end_dates(month):
     # Parse the start date
