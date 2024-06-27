@@ -105,8 +105,7 @@ def create_app(test_config=None):
 
     connect('dev', alias='default', host=app.config['MONGO_URI'])
 
-    # tracker = track_orders()
-    # print(tracker.result_30)
+    tracker = track_orders()
 
     # fmt: on
 
@@ -833,20 +832,35 @@ def create_app(test_config=None):
                 user_data[key] = value
         return jsonify({'data': user_data}), 200
 
-    # @app.route('/last30', methods=['GET'])
-    # def last30():
+    @app.route('/last30', methods=['GET'])
+    def last30():
 
-    #     return jsonify({'data': tracker.result_30}), 200
+        return jsonify({'data': tracker.result_30}), 200
 
-    # @app.route('/last60', methods=['GET'])
-    # def last60():
+    @app.route('/last60', methods=['GET'])
+    def last60():
 
-    #     return jsonify({'data': tracker.result_60}), 200
+        return jsonify({'data': tracker.result_60}), 200
 
-    # @app.route('/last90', methods=['GET'])
-    # def last60():
+    @app.route('/last90', methods=['GET'])
+    def last90():
 
-    #     return jsonify({'data': tracker.result_90}), 200
+        return jsonify({'data': tracker.result_90}), 200
+
+    @app.route('/topseller30', methods=['GET'])
+    def topseller30():
+
+        return jsonify({'data': tracker.top_seller_30}), 200
+
+    @app.route('/topseller60', methods=['GET'])
+    def topseller60():
+
+        return jsonify({'data': tracker.top_seller_60}), 200
+
+    @app.route('/topseller90', methods=['GET'])
+    def topseller90():
+
+        return jsonify({'data': tracker.top_seller_90}), 200
 
     #########################################################
     #################### aichatbot service ##################
