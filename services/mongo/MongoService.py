@@ -435,17 +435,76 @@ def get_all_products_mongodb(influencer_instance, search_term=''):
 
 def get_top_three_selling_products(month):
     start_date, end_date = get_start_and_end_dates(month)
-    # Find top three selling products
-    top_products = Product.objects().order_by('-amount', '-revenue').limit(3)
+    pipeline = [
+            {
+                "$match": {
+                    "closedAt": {'$gte': start_date, '$lt': end_date},
+                    'displayFinancialStatus': {'$in': ['PAID', 'PARTIALLY_REFUNDED']}
+                }
+            },
+            {
+                "$unwind": "$lineitem"
+            },
+            {
+                "$lookup": {
+                    "from": "line_item",
+                    "localField": "lineitem",
+                    "foreignField": "_id",
+                    "as": "lineitem_details"
+                }
+            },
+            {
+                "$unwind": "$lineitem_details"
+            },
+            {
+                "$match": {
+                    "lineitem_details.product": {'$ne': None}
+                }
+            },
+            {
+                "$project": {
+                    "product": "$lineitem_details.product",
+                    "quantity": "$lineitem_details.lineitem_quantity",
+                    "totalPrice": {
+                        "$multiply": [
+                            "$lineitem_details.lineitem_quantity",
+                            "$lineitem_details.lineitem_price"
+                        ]
+                    }
+                }
+            },
+            {
+                "$group": {
+                    "_id": "$product",
+                    "totalQuantitySold": { "$sum": "$quantity" },
+                    "totalRevenue": { "$sum": "$totalPrice" }
+                }
+            },
+            {
+                "$sort": {
+                    "totalQuantitySold": -1    # 按卖出数量降序排序
+                }
+            },
+            {
+            '$limit': 3
+            }
+        ]
+
+    # 执行聚合管道
+    results = Order.objects.aggregate(*pipeline)
+    results = list(results)
     products = []
-    for product in top_products:
-        one_product = {}
-        one_product['name'] = product.title
-        one_product['unit_sold'] = product.amount
-        one_product['revenue'] = product.revenue
-        one_product['featuredImage'] = product.featuredImage.url
-        one_product['onlineStoreUrl'] = product.onlineStoreUrl
-        products.append(one_product)
+
+    for obj in results:
+        pro = {}
+        pro['unit_sold'] = obj['totalQuantitySold']
+        pro['revenue'] = obj['totalRevenue']
+        product = Product.objects.get(id=obj['_id'])
+        pro['name'] = product.title
+        pro['onlineStoreUrl'] = product.onlineStoreUrl
+        pro['featuredImage'] = product.featuredImage.url
+        products.append(pro)
+    
     return products
 
 def get_top_three_influencer(month):
@@ -454,7 +513,7 @@ def get_top_three_influencer(month):
     pipeline = [
         {
             '$match': {
-                'createdAt': {'$gte': start_date, '$lt': end_date},
+                'closedAt': {'$gte': start_date, '$lt': end_date},
                 'displayFinancialStatus': {'$in': ['PAID', 'PARTIALLY_REFUNDED']}
             }
         },
@@ -477,16 +536,17 @@ def get_top_three_influencer(month):
         },
         {
             '$sort': {'totalQuantity': -1}
-        },
-        {
-            '$limit': 3
         }
     ]
     
     # Run the aggregation pipeline
-    results = Order.objects.aggregate(*pipeline)
+    results = Order.objects.aggregate(pipeline)
+    results = list(results)
+    print(results)
     influencers = []
     for res in results:
+        if len(influencers) == 3:
+            break
         inf = {}
         influencer = Influencer.objects(promo_code=res['_id']).first()
         if influencer:
@@ -496,7 +556,6 @@ def get_top_three_influencer(month):
         inf['unit_sold'] = res['totalQuantity']
         inf['revenue'] = res['totalAmount']
         influencers.append(inf)
-        print(res['_id'])
     return influencers
 
 

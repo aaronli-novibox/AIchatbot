@@ -570,8 +570,9 @@ def create_app(test_config=None):
         for time in range:
             result = get_top_three_influencer(time)
             top_influencers.append({time: result})
+            ans = get_top_three_selling_products(time)
+            top_products.append({time:ans})
         print(top_influencers)
-        products_list = get_top_three_selling_products(month)
 
         return jsonify({
             'cards': {
@@ -580,7 +581,7 @@ def create_app(test_config=None):
                 'last_month_orders': last_month_orders,
                 'last_month_products_sold': last_month_products_sold
             },
-            'products': products_list,
+            'products': top_products,
             'influencers': top_influencers
         }), 200
 

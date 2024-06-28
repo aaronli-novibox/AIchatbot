@@ -11,10 +11,6 @@ class track_orders:
         self.result_60 = self.retrive(60)
         self.result_90 = self.retrive(90)
 
-        self.top_seller_30 = self.top_seller(30)
-        self.top_seller_60 = self.top_seller(60)
-        self.top_seller_90 = self.top_seller(90)
-
     def retrive(self, days=30):
         thirty_days_ago = datetime.now() - timedelta(days=days)
         # 生成过去30天的日期列表
@@ -150,48 +146,3 @@ class track_orders:
             "revenues": total_commission_list,
         }
 
-    def top_seller(self, days=30):
-        # 获取过去30天内的订单
-        thirty_days_ago = datetime.now() - timedelta(days)
-
-        pipeline = [
-            {
-                "$match": {
-                    "closedAt": {
-                        "$gte": thirty_days_ago
-                    }
-                }
-            },
-            {
-                "$unwind": "$lineitem"
-            },
-            {
-                "$lookup": {
-                    "from": "line_item",
-                    "localField": "lineitem",
-                    "foreignField": "_id",
-                    "as": "lineitem_details"
-                }
-            },
-            {
-                "$unwind": "$lineitem_details"
-            },
-            {
-                "$group": {
-                    "_id": "$lineitem_details.lineitem_sku",
-                    "totalQuantitySold": {
-                        "$sum": "$lineitem_details.lineitem_quantity"
-                    }
-                }
-            },
-            {
-                "$sort": {
-                    "totalQuantitySold": -1    # 按卖出数量降序排序
-                }
-            }
-        ]
-
-        # 执行聚合管道
-        result = Order.objects.aggregate(pipeline)
-
-        return list(result)
