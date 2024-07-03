@@ -66,7 +66,9 @@ def userTyping(req):
     user_typing = req["user_typing"]
 
     # 根据user_Need_List动态生成描述内容的Python代码
-    content = f"You need to help me determine the next branch direction based on the user's freely entered content. We have the following branch directions: 1. The user's input is a description of the goods they need to purchase, and we will make recommendations based on the user's input next. 2. The user wants to query historical order information, logistics information, etc. 3. The user is using our conversation for casual chat. 4. Unable to identify user intent. The following is the user's conversation {user_typing}. Please determine the branch. If it is branch 1, reply with 1, and so on."
+    content = 'You are a problem classifier with the following possible categories: 1. Using AI Swipe to browse products: This may allow users to browse products using an AI-driven recommendation system, potentially including swipe options to quickly like or dislike, similar to many modern dating apps. This mode is usually for selecting gifts for oneself. 2. Using AI to find gifts: This option can provide AI-recommended gift selection help, possibly using information entered by the user about the recipient to suggest suitable gift options. This mode is usually for selecting gifts for others.3. Contact Us: This is a standard customer service feature, where users can contact support staff for inquiries or assistance.4. Order Help: This option may provide support related to orders, such as tracking delivery, managing returns, or resolving any issues that arose during order placement. 5. Small Talk: User inputs that are unrelated to the three above categories. Your output needs to maintain the following format, setting the classification you determine as True: { "AI Swipe": false, "Using AI to find gifts": true, "Contact Us": false, "Order Help": false, "Small Talk": false } You need to return the entire JSON, including the false parts. Your output should only contain this JSON, with no extra text output.'
+
+    content += f'The user\'s input is: "{user_typing}". Please classify the user\'s input.'
 
     stream = g.clientOpenAI.chat.completions.create(
         model="gpt-4",
@@ -84,52 +86,57 @@ def userTyping(req):
             typing_string_ = typing_string_ + chunk.choices[0].delta.content
             print(chunk.choices[0].delta.content, end='')
 
-    branch_index = matchBranch(typing_string_)
+    typing_string_ = json.loads(typing_string_)
+    return {'code': '0000', 'data': typing_string_, 'msg': 'success'}, 200
 
-    if branch_index == 1:
+    # branch_index = matchBranch(typing_string_)
 
-        return recommandGiftByUserInput(req)
+    # if branch_index == 1:
 
-    elif branch_index == 2:
+    #     return {'code': '0001', 'msg': 'AI'}
 
-        # 这里跳转到历史订单查询的代码
-        return {
-            'code':
-                '0002',    # '0002'代表请求查询历史订单信息等
-            'data': {
-                'result': None,
-            },
-            'msg':
-                'The user wants to query historical order information, logistics information, etc. 请求查询历史订单信息等'
-        }, 200
+    # elif branch_index == 2:
 
-    elif branch_index == 3:
+    #     # 这里跳转到历史订单查询的代码
+    #     return {
+    #         'code':
+    #             '0002',    # '0002'代表请求查询历史订单信息等
+    #         'data': {
+    #             'result': None,
+    #         },
+    #         'msg':
+    #             'The user wants to query historical order information, logistics information, etc. 请求查询历史订单信息等'
+    #     }, 200
 
-        # 这里跳转到闲聊的代码
-        return {
-            'code': '0003',    # '0003'代表用户在使用我们的对话进行闲聊
-            'data': {
-                'result': None,
-            },
-            'msg': 'The user is using our conversation for casual chat. 请求闲聊'
-        }, 200
+    # elif branch_index == 3:
 
-    elif branch_index == 4:
+    #     # 这里跳转到闲聊的代码
+    #     return {
+    #         'code': '0003',    # '0003'代表用户在使用我们的对话进行闲聊
+    #         'data': {
+    #             'result': None,
+    #         },
+    #         'msg': 'The user is using our conversation for casual chat. 请求闲聊'
+    #     }, 200
 
-        # 这里跳转到提示用户输入的代码
-        return {
-            'code': '0004',    # '0004'代表无法识别用户意图
-            'data': {
-                'result': None,
-            },
-            'msg': 'Unable to identify user intent. 搞不懂用户请求'
-        }, 200
+    # elif branch_index == 4:
+
+    #     # 这里跳转到提示用户输入的代码
+    #     return {
+    #         'code': '0004',    # '0004'代表无法识别用户意图
+    #         'data': {
+    #             'result': None,
+    #         },
+    #         'msg': 'Unable to identify user intent. 搞不懂用户请求'
+    #     }, 200
 
 
 # 根据用户的聊天框输入推荐礼物
 def recommandGiftByUserInput(req):
 
     user_typing = req["user_typing"]
+
+    print(user_typing)
 
     content = f'''Here is a user's input:"{user_typing}", give me a list of 10 terms to describe the potential product. You must include the products mentioned in the input.'''
 
@@ -163,7 +170,7 @@ def recommandGiftByUserInput(req):
                 "queryVector": query_vector,
     # "cosine": True,
                 "numCandidates": 50,
-                "limit": 10
+                "limit": 20
             }
         },
         {
