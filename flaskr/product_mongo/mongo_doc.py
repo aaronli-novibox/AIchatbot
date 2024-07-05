@@ -342,7 +342,7 @@ class Order(Document):
     lineitem = ListField(ReferenceField('LineItem'), required=True, help_text="A list of line items in the order.")
 
     # 新增字段
-    order_commission_fee = DecimalField(default=0) # 用于计算订单给influencer的分红
+    order_commission_fee = FloatField(default=0) # 用于计算订单给influencer的分红
     quantity = IntField(default = 0) # 用于计算订单中商品数量
 
 

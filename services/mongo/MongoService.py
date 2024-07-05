@@ -531,7 +531,7 @@ def get_top_three_influencer(month):
             '$group': {
                 '_id': '$firstDiscountCode',
                 'totalQuantity': {'$sum': '$quantity'},
-                'totalAmount': {'$sum': '$currentTotalPriceSet.shopMoney.amount'}
+                'totalAmount': {'$sum': '$totalPriceSet.shopMoney.amount'}
             }
         },
         {
@@ -542,7 +542,6 @@ def get_top_three_influencer(month):
     # Run the aggregation pipeline
     results = Order.objects.aggregate(pipeline)
     results = list(results)
-    print(results)
     influencers = []
     for res in results:
         if len(influencers) == 3:

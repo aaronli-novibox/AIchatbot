@@ -220,7 +220,6 @@ class Influencer(Document):
                         order_info.order_commission_fee += li.commission_fee
                         order.order_commission_fee += li.commission_fee
 
-                        product_details.commission_fee += li.commission_fee
                         # 增加class中的total_commission
                         self.total_commission += li.commission_fee
 
@@ -348,7 +347,7 @@ class Influencer(Document):
         for order in all_orders:
             if start_date <= order.createdAt < end_date and (order.displayFinancialStatus.value == "PAID" or order.displayFinancialStatus.value == "PARTIALLY_REFUNDED"):
                 try:
-                    total_sales += order.currentTotalPriceSet.shopMoney.amount
+                    total_sales += order.totalPriceSet.shopMoney.amount
                 except:
                     print(order.id)
         return total_sales
