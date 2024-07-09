@@ -58,8 +58,7 @@ class Influencer(Document):
     promo_code = StringField(
         required=True,
         unique=True,
-    # TODO: default=generate_promo_code()，可以直接generate，不喜欢再改
-    )    # 普通用户注册的需不需要promo code呢, default 先生成一个，不喜欢再改
+    )
     contract_start = DateTimeField(default=None)
     contract_end = DateTimeField(default=None)
 
