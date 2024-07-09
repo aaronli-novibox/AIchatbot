@@ -369,3 +369,15 @@ class track_orders:
             print()
 
         return {"products": result}, 200
+
+    def related(self, promo_code):
+        influencer = Influencer.objects(promo_code=promo_code).first()
+
+        if influencer is None:
+            return {"message": "Influencer not found"}, 400
+
+        data = {
+            'total_gmv': influencer.total_commission,
+            'total_orders_sold': influencer.order_nums,
+            'total_products_sold': influencer.product_nums,
+        }, 200

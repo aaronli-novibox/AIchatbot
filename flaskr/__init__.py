@@ -882,6 +882,13 @@ def create_app(test_config=None):
                                                 days=req['days'])
         return jsonify(res), status_code
 
+    @app.route('/influencer_info', methods=['POST'])
+    def influencer_sold_chart():
+
+        req = request.get_json()
+        res, status_code = tracker.related(req['promo_code'],)
+        return jsonify(res), status_code
+
     #########################################################
     #################### aichatbot service ##################
     #########################################################
