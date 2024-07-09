@@ -875,7 +875,7 @@ def create_app(test_config=None):
         return jsonify(res), status_code
 
     @app.route('/product_sold', methods=['POST'])
-    def sales_():
+    def product_sold():
 
         req = request.get_json()
         res, status_code = tracker.product_sold(req['promo_code'],
