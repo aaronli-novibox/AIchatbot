@@ -380,4 +380,6 @@ class track_orders:
             'total_gmv': influencer.total_commission,
             'total_orders_sold': influencer.order_nums,
             'total_products_sold': influencer.product_nums,
-        }, 200
+        }
+
+        return data, 200
