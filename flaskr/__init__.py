@@ -889,6 +889,17 @@ def create_app(test_config=None):
         res, status_code = tracker.related(req['promo_code'],)
         return jsonify(res), status_code
 
+    @app.route('/product_contract', methods=['POST'])
+    def product_contract():
+
+        req = request.get_json()
+        res, status_code = tracker.product_contract(req['start_time'],
+                                                    req['end_time'],
+                                                    req['commission_rate'],
+                                                    req['promo_code'],
+                                                    req['product_id'])
+        return jsonify(res), status_code
+
     #########################################################
     #################### aichatbot service ##################
     #########################################################
