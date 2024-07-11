@@ -91,6 +91,7 @@ class Influencer(Document):
     order_nums = IntField(default=0)  # 总计的订单数量
     product_nums = DecimalField(default=0)    # 订单中商品的数量
     total_commission = FloatField(default=0)    # 总佣金
+    promo_code_used = IntField(default=0)    # 使用的promo code数量 => 即订单中不同商品的数量
 
     is_email_confirmed = BooleanField()
 
@@ -188,6 +189,7 @@ class Influencer(Document):
                 # 增加class中的order_nums
                 self.product_nums += li.lineitem_quantity
                 order.quantity += li.lineitem_quantity
+                self.promo_code_used += 1
 
                 # 找到对应的product
                 product = li.product.fetch() if li.product else None
@@ -230,6 +232,8 @@ class Influencer(Document):
                 self.order_nums -=1
                 # 减去class中的order_nums
                 self.product_nums -= li.lineitem_quantity
+
+                self.promo_code_used -= 1
 
                 order.quantity -= li.lineitem_quantity
                 order.order_commission_fee -= li.commission_fee

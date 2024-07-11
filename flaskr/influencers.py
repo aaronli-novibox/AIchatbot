@@ -380,6 +380,7 @@ class track_orders:
             'total_gmv': influencer.total_commission,
             'total_orders_sold': influencer.order_nums,
             'total_products_sold': influencer.product_nums,
+            'total_promo_codes_used': influencer.promo_code_used,
         }
 
         return data, 200
@@ -387,9 +388,9 @@ class track_orders:
     # add product contract
     # start_time, end_time, commisson_rate, influencer  _username和product啥信息发过去可以确定是哪个product，然后influencer可以把product记在合同里就加个add的api
     def product_contract(self, start_time, end_time, commission_rate,
-                         influencer_username, product_sid):
+                         promo_code, product_sid):
         product = Product.objects(shopify_id=product_sid).first()
-        influencer = Influencer.objects(username=influencer_username).first()
+        influencer = Influencer.objects(promo_code=promo_code).first()
 
         if product is None:
             return {"message": "Product not found"}, 400
