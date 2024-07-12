@@ -168,7 +168,6 @@ def recommandGiftByUserInput(req):
                 "index": "vector_index",
                 "path": "descriptionVector",
                 "queryVector": query_vector,
-    # "cosine": True,
                 "numCandidates": 50,
                 "limit": 20
             }
@@ -182,6 +181,22 @@ def recommandGiftByUserInput(req):
             "$addFields": {
                 "similarityScore": {
                     "$meta": "vectorSearchScore"
+                },
+            }
+        },
+        {
+            "$lookup": {
+                "from": "product_variant",
+                "localField": "variants",
+                "foreignField": "_id",
+                "as": "variantDetails"
+            }
+        },
+        {
+            "$addFields": {
+                "firstVariantId": {
+                    "$arrayElemAt": ["$variantDetails.shopify_id",
+                                     0]    # 获取variantDetails数组中的第一个元素的_id
                 }
             }
         },
@@ -197,6 +212,7 @@ def recommandGiftByUserInput(req):
                 "title": 1,
                 "productType": 1,
                 "featuredImage": 1,
+                "firstVariantId": 1    # 包含第一个variant_id
             }
         }
     ]

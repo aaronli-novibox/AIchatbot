@@ -563,7 +563,8 @@ def create_app(test_config=None):
 
         last_month_sales = influencer_data.get_last_month_sales(month)
 
-        last_month_orders, last_month_products_sold = get_last_month_orders(month)
+        last_month_orders, last_month_products_sold = get_last_month_orders(
+            month)
 
         top_products = []
         top_influencers = []
@@ -571,7 +572,7 @@ def create_app(test_config=None):
             result = get_top_three_influencer(time)
             top_influencers.append({time: result})
             ans = get_top_three_selling_products(time)
-            top_products.append({time:ans})
+            top_products.append({time: ans})
         print(top_influencers)
 
         return jsonify({
@@ -862,6 +863,42 @@ def create_app(test_config=None):
     def topseller90():
 
         return jsonify({'data': tracker.top_seller_90}), 200
+
+    @app.route('/sales_chart', methods=['POST'])
+    def sales_():
+
+        req = request.get_json()
+
+        res, status_code = tracker.sales_chart(req['promo_code'],
+                                               days=req['days'])
+
+        return jsonify(res), status_code
+
+    @app.route('/product_sold', methods=['POST'])
+    def product_sold():
+
+        req = request.get_json()
+        res, status_code = tracker.product_sold(req['promo_code'],
+                                                days=req['days'])
+        return jsonify(res), status_code
+
+    @app.route('/influencer_info', methods=['POST'])
+    def influencer_sold_chart():
+
+        req = request.get_json()
+        res, status_code = tracker.related(req['promo_code'],)
+        return jsonify(res), status_code
+
+    @app.route('/product_contract', methods=['POST'])
+    def product_contract():
+
+        req = request.get_json()
+        res, status_code = tracker.product_contract(req['start_time'],
+                                                    req['end_time'],
+                                                    req['commission_rate'],
+                                                    req['promo_code'],
+                                                    req['product_id'])
+        return jsonify(res), status_code
 
     #########################################################
     #################### aichatbot service ##################
