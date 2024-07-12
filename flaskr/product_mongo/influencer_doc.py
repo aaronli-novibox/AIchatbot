@@ -254,6 +254,56 @@ class Influencer(Document):
 
         self.save()
 
+    def fake_data(self, order):
+        if order.displayFinancialStatus.value == "PAID":
+            print("paid order")
+            for li in order.lineitem:
+
+                    # 增加class中的order_nums
+                    if self.product_nums == 0:
+                        self.product_nums += li.lineitem_quantity
+                    #order.quantity += li.lineitem_quantity
+
+                    # 找到对应的product
+                    product = li.product.fetch() if li.product else None
+                    if product:
+                        # 更新product的amount
+                        print('Product Found:', product.title)
+                        if product.amount == 0:
+                            product.amount += li.lineitem_quantity
+                        if product.revenue == 0:
+                            product.revenue += li.lineitem_quantity * li.lineitem_price
+
+                        # 以下是签约的产品
+                        product_details = self.find_product(product.id)
+                        print('commission: ', order.order_commission_fee)
+                        if product_details and product_details.product_contract_start <= order.createdAt and product_details.product_contract_end >= order.createdAt:
+                            print('signed product')
+                            if li.commission == 0:
+                                print()
+                                li.commission = product_details.commission
+                                li.commission_fee =(float(product_details.commission.replace('%', '')) /
+                                    100) * li.lineitem_quantity * li.lineitem_price
+
+                                order.order_commission_fee += li.commission_fee
+
+                                product_details.commission_fee += li.commission_fee
+
+                                # 增加class中的total_commission
+                                self.total_commission += li.commission_fee
+
+                        else:
+                            if li.commission == 0:
+                                li.commission = '8%'
+                                li.commission_fee = 0.08 * li.lineitem_quantity * li.lineitem_price
+                                order.order_commission_fee += li.commission_fee
+
+                                # 增加class中的total_commission
+                                self.total_commission += li.commission_fee
+
+                        li.save()
+                        order.save(validate=False)
+
     def find_product(self, product_id):
 
         for ip in self.product:
