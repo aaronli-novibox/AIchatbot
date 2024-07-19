@@ -41,7 +41,10 @@ def convert_edt_to_utc(edt_time_str):
     time_format = '%Y-%m-%d %H:%M:%S %z'
 
     # Parse the input time string into a datetime object
-    local_time = datetime.strptime(edt_time_str, time_format)
+    try:
+        local_time = datetime.strptime(edt_time_str, time_format)
+    except :
+        print(edt_time_str)
 
     # Convert the local time to UTC
     utc_time = local_time.astimezone(pytz.utc)
@@ -63,24 +66,20 @@ WEBHOOK_KEY = os.getenv("WEBHOOK_KEY")
 
 connect('dev', alias='default', host=MONGO_URI)
 
-# Clear existing records in the collections
-Order.drop_collection()
-LineItem.drop_collection()
+#promo_code = 'MZ_NOVIBOX_5'
 
-promo_code = 'MZ_NOVIBOX_5'
-
-influencer = Influencer.objects(promo_code=promo_code).first()
+#influencer = Influencer.objects(promo_code=promo_code).first()
 # Clear the orders list for the influencer
-if influencer:
-    influencer.orders = []
-    influencer.save()
+# if influencer:
+#     influencer.orders = []
+#     influencer.save()
 # import sys
 
 # sys.exit()
 
 # Read the Excel file
 data = pd.read_excel(
-    '/Users/yaminzhang/Downloads/orders_export_test_data.xlsx')
+    '/Users/yaminzhang/Downloads/orders_export_test_data (1).xlsx')
 
 last_order = None
 
@@ -91,6 +90,7 @@ for index, row in data.iterrows():
 
     # Access individual values
     name = row['Name']
+    promo_code = row['Discount Code']
 
     name_num = extract_number_from_string(name)
     if int(name_num) > 99999:
@@ -102,16 +102,13 @@ for index, row in data.iterrows():
             email = row['Email']
             displayFinancialStatus = row['Financial Status']
             createdAt = row['Paid at']
-            print(name)
-            print(createdAt)
             createdAt = convert_edt_to_utc(createdAt)
 
             displayFulfillmentStatus = row['Fulfillment Status']
             closedAt = row['Fulfilled at']
 
             if str(closedAt) != 'nan':
-                print(closedAt)
-                closedAt = convert_edt_to_utc((closedAt))
+                closedAt = convert_edt_to_utc(str(closedAt))
 
             currencyCode = row['Currency']
             subtotalLineItemsQuantity = row['Lineitem quantity']
@@ -145,6 +142,7 @@ for index, row in data.iterrows():
                                   currencyCode=currencyCode))
 
             customerAcceptsMarketing = row['Accepts Marketing']
+            discountCodes = [row['Discount Code']]
             order = Order(
                 shopify_id=shopify_id,
                 name=name,
@@ -161,7 +159,10 @@ for index, row in data.iterrows():
                 totalDiscountsSet=totalDiscountsSet,
                 subtotalLineItemsQuantity=subtotalLineItemsQuantity,
                 lineitem=[],
-                customerAcceptsMarketing=customerAcceptsMarketing)
+                discountCodes = discountCodes,
+                customerAcceptsMarketing=customerAcceptsMarketing,
+                order_commission_fee = 0,
+                quantity = 0)
             order.save(validate=False)
 
         li = LineItem.objects(shopify_id='test_data_lineitem' + name +
@@ -185,27 +186,39 @@ for index, row in data.iterrows():
                 variant=None)
 
         title = str(row['Lineitem name'])
+        sku = str(row['Lineitem sku'])
         product = Product.objects(title=title).first()
         product_variant = ProductVariant.objects(product=product).first()
-
+        if not product:
+            product_variant = ProductVariant.objects(sku=sku).first()
+            if product_variant:
+                product = product_variant.product
+        if not product:
+            print('sku: ',sku)
+            print('title: ',title)
+        
         li.product = product
         li.variant = product_variant
-        li.commission_fee = int(li.lineitem_price) * int(
-            li.lineitem_quantity) * 0.08
 
-        li.save()
+        li.commission = 0
+        li.commission_fee = 0
+
+        li.save(validate=False)
         order.lineitem.append(li)
+        order.quantity += int(li.lineitem_quantity)
         order.save(validate=False)
 
-        influencer.append_order(order)
-        influencer_product = InfluencerProduct(
-            product=product,
-            product_contract_start=datetime.strptime("02-18-2024", "%m-%d-%Y"),
-            product_contract_end=datetime.strptime("02-18-2025", "%m-%d-%Y"))
-        if influencer_product not in influencer.product:
-            influencer.product.append(influencer_product)
+        influencer = Influencer.objects(promo_code=promo_code).first()
+        if influencer:
+            influencer.fake_data(order)
+            # influencer_product = InfluencerProduct(
+            #     product=product,
+            #     product_contract_start=datetime.strptime("02-18-2024", "%m-%d-%Y"),
+            #     product_contract_end=datetime.strptime("02-18-2025", "%m-%d-%Y"))
+            # if influencer_product not in influencer.product:
+            #     influencer.product.append(influencer_product)
 
-        influencer.save()
+            influencer.save()
         # i += 1
         # if i == 6:
         #     break

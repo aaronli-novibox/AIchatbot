@@ -51,7 +51,8 @@ def getInfluencerListFromMongoDB():
 
 def search_influencerList(search='', status=''):
     query = Q()
-
+    q = Q(role__ne='admin')
+    query &= q
     if search:
         regex_pattern = f".*{search}.*"
         # 使用 Q 对象来构建 OR 查询，并进行不区分大小写的模糊搜索

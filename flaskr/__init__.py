@@ -573,7 +573,6 @@ def create_app(test_config=None):
             top_influencers.append({time: result})
             ans = get_top_three_selling_products(time)
             top_products.append({time: ans})
-        print(top_influencers)
 
         return jsonify({
             'cards': {
@@ -795,7 +794,7 @@ def create_app(test_config=None):
         search_term = data.get('search', '')
         role = data.get('role', '')
         status = data.get('status', '')
-
+        
         if role == 'admin':
             influencers = search_influencerList(search=search_term,
                                                 status=status)
@@ -866,7 +865,6 @@ def create_app(test_config=None):
 
     @app.route('/sales_chart', methods=['POST'])
     def sales_():
-
         req = request.get_json()
 
         res, status_code = tracker.sales_chart(req['promo_code'],
