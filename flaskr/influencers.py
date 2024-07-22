@@ -73,7 +73,8 @@ class track_orders:
                         "$ifNull": ["$unique_discount_codes", []]
                     },
                     "total_revenue": 1,
-                    "total_quantity": 1
+                    "total_quantity": 1,
+                    "total_profit": 1
                 }
             },
             {
