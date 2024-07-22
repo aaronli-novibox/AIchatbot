@@ -48,8 +48,10 @@ class track_orders:
                         "$addToSet": "$discountCode"
                     },
                     "total_revenue": {
-        # "$sum": "$totalPriceSet.shopMoney.amount"
-                        "$sum": "$orders.order_profit"
+                        "$sum": "$totalPriceSet.shopMoney.amount"
+                    },
+                    'total_profit': {
+                        "$sum": "$order_profit"
                     },
                     "total_quantity": {
                         "$sum": "$quantity"
@@ -104,7 +106,8 @@ class track_orders:
                         }
                     },
                     "total_revenue": 1,
-                    "total_quantity": 1
+                    "total_quantity": 1,
+                    "total_profit": 1
                 }
             },
             {
@@ -124,6 +127,7 @@ class track_orders:
         unique_discount_codes_list = []
         total_quantity_list = []
         total_revenue_list = []
+        total_profit_list = []
 
         # 遍历过去30天的日期
         for date in dates:
@@ -133,17 +137,21 @@ class track_orders:
                     result_dict[date]['total_discount_codes'])
                 total_quantity_list.append(result_dict[date]['total_quantity'])
                 total_revenue_list.append(result_dict[date]['total_revenue'])
+                total_profit_list.append(result_dict[date]['total_profit'])
+
             else:
                 total_orders_list.append(0)
                 unique_discount_codes_list.append(0)
                 total_quantity_list.append(0)
                 total_revenue_list.append(0)
+                total_profit_list.append(0)
 
         return {
             "orders": total_orders_list,
             "influencers": unique_discount_codes_list,
             "product_sold": total_quantity_list,
             "revenues": total_revenue_list,
+            "profits": total_profit_list
         }, 200
 
     def top_seller(self, days=30):
