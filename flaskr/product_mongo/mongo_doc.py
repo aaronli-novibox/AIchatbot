@@ -344,6 +344,7 @@ class Order(Document):
     # 新增字段
     order_commission_fee = FloatField(default=0) # 用于计算订单给influencer的分红
     quantity = IntField(default = 0) # 用于计算订单中商品数量
+    order_profit = FloatField(default = 0) # 用于计算订单利润
 
 
 # class Order(Document):

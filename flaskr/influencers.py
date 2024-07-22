@@ -48,7 +48,8 @@ class track_orders:
                         "$addToSet": "$discountCode"
                     },
                     "total_revenue": {
-                        "$sum": "$totalPriceSet.shopMoney.amount"
+        # "$sum": "$totalPriceSet.shopMoney.amount"
+                        "$sum": "$orders.order_profit"
                     },
                     "total_quantity": {
                         "$sum": "$quantity"
@@ -131,8 +132,7 @@ class track_orders:
                 unique_discount_codes_list.append(
                     result_dict[date]['total_discount_codes'])
                 total_quantity_list.append(result_dict[date]['total_quantity'])
-                total_revenue_list.append(
-                    result_dict[date]['total_revenue'])
+                total_revenue_list.append(result_dict[date]['total_revenue'])
             else:
                 total_orders_list.append(0)
                 unique_discount_codes_list.append(0)
@@ -239,8 +239,8 @@ class track_orders:
                 "total_orders": {
                     "$sum": 1
                 },
-                "total_commission": {
-                    "$sum": "$orders.order_commission_fee"
+                "total_profit": {
+                    "$sum": "$orders.order_profit"
                 }
             }
         }, {
@@ -254,7 +254,7 @@ class track_orders:
                     }
                 },
                 "total_orders": 1,
-                "total_commission": 1
+                "total_profit": 1
             }
         }, {
             "$sort": {
@@ -276,25 +276,24 @@ class track_orders:
 
         # 初始化结果列表
         total_orders_list = []
-        total_commission_list = []
+        total_profit = []
 
         # 遍历过去30天的日期
         for date in dates:
             if date in result_dict:
                 total_orders_list.append(result_dict[date]['total_orders'])
-                total_commission_list.append(
-                    result_dict[date]['total_commission'])
+                total_profit.append(result_dict[date]['total_profit'])
             else:
                 total_orders_list.append(0)
-                total_commission_list.append(0)
+                total_profit.append(0)
 
         # 打印结果
         print("Total Orders List:", total_orders_list)
-        print("Total Commission List:", total_commission_list)
+        print("Total Commission List:", total_profit)
 
         return {
             "orders": total_orders_list,
-            "revenues": total_commission_list,
+            "revenues": total_profit,
         }, 200
 
     def product_sold(self, promo_code, days):
@@ -339,8 +338,8 @@ class track_orders:
                 "total_quantity": {
                     "$sum": "$lineitem_details.lineitem_quantity"
                 },
-                "total_commission_fee": {
-                    "$sum": "$lineitem_details.commission_fee"
+                "total_profit": {
+                    "$sum": "$lineitem_details.profit"
                 },
                 "commissions": {
                     "$addToSet": "$lineitem_details.commission"
@@ -351,7 +350,7 @@ class track_orders:
                 "_id": 0,
                 "product": "$_id",
                 "total_quantity": 1,
-                "total_commission_fee": 1,
+                "total_profit": 1,
                 "commissions": 1
             }
         }]
@@ -364,7 +363,7 @@ class track_orders:
         for item in result:
             print(f"Product: {item['product']}")
             print(f"Total Quantity: {item['total_quantity']}")
-            print(f"Total Commission Fee: {item['total_commission_fee']}")
+            print(f"Total Commission Fee: {item['total_profit']}")
             print(f"Commissions: {item['commissions']}")
             print()
 
