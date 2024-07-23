@@ -422,3 +422,65 @@ class track_orders:
         influencer.save()
 
         return {"message": "Product contract added"}, 200
+
+    # update product contract
+    # start_time, end_time, commisson_rate, influencer
+    def update_contract(self, start_time, end_time, commission_rate, promo_code, product_sid):
+        product = Product.objects(shopify_id=product_sid).first()
+        influencer = Influencer.objects(promo_code=promo_code).first()
+
+        if product is None:
+            return {"message": "Product not found"}, 400
+
+        if influencer is None:
+            return {"message": "Influencer not found"}, 400
+
+        influencer_product = None
+        for ip in influencer.product:
+            if ip.product == product:
+                influencer_product = ip
+                break
+
+        if influencer_product is None:
+            return {"message": "Contract not found"}, 400
+
+        influencer_product.pre_commission = influencer_product.commission
+        influencer_product.commission = commission_rate
+        influencer_product.product_contract_start = start_time
+        influencer_product.product_contract_end = end_time
+        influencer_product.review_status = "Reviewing"
+
+        influencer.save()
+        return {"message": "Product contract updated"}, 200
+
+    def review_contract(self, promo_code, product_sid, review_result, clean=False):
+        product = Product.objects(shopify_id=product_sid).first()
+        influencer = Influencer.objects(promo_code=promo_code).first()
+
+        if product is None:
+            return {"message": "Product not found"}, 400
+
+        if influencer is None:
+            return {"message": "Influencer not found"}, 400
+
+        influencer_product = None
+        for ip in influencer.product:
+            if ip.product == product:
+                influencer_product = ip
+                break
+
+        if influencer_product is None:
+            return {"message": "Contract not found"}, 400
+
+        if clean:
+            influencer_product.pre_commission = ""
+            influencer_product.review_status = ""
+        else:
+            if review_result:
+                influencer_product.review_status = "Success"
+            else:
+                influencer_product.review_status = "Failed"
+                influencer_product.commission = influencer_product.pre_commission
+
+        influencer.save()
+        return {"message": "Product contract reviewed/updated"}, 200
