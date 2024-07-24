@@ -186,10 +186,13 @@ class Influencer(Document):
             self.order_nums +=1
 
             for li in order.lineitem:
+                order.quantity += li.lineitem_quantity
+
+            for li in order.lineitem:
 
                 # 增加class中的order_nums
                 self.product_nums += li.lineitem_quantity
-                order.quantity += li.lineitem_quantity
+                # order.quantity += li.lineitem_quantity
                 self.promo_code_used += 1
 
                 # 找到对应的product
@@ -217,9 +220,16 @@ class Influencer(Document):
 
                         # 找成本的实例
                         product_pricing = Product_Pricing.objects(Product_List__sku=li.lineitem_sku).first()
-                        if product_pricing:
-                            li.profit = li.lineitem_quantity * li.lineitem_price - product_pricing.vendor_price / product_pricing.Exchange_Rate - li.commission_fee
-                            order.total_profit += li.profit
+                        if product_pricing and product_pricing.Cost:
+
+                            li.profit = li.lineitem_quantity * li.lineitem_price - product_pricing.Cost.Vendor_price / product_pricing.Exchange_Rate - li.commission_fee - product_pricing.Cost.Self_shipping_cost * li.lineitem_quantity / order.quantity
+                            order.order_profit += li.profit
+
+                        else:
+                            # 没有找到商品成本
+                            li.profit = li.lineitem_quantity * li.lineitem_price - li.commission_fee
+                            order.order_profit += li.profit
+
 
                     else:
                         li.commission = '8%'
@@ -233,8 +243,14 @@ class Influencer(Document):
 
                         # 找成本的实例
                         product_pricing = Product_Pricing.objects(Product_List__sku=li.lineitem_sku).first()
-                        if product_pricing:
-                            li.profit = li.lineitem_quantity * li.lineitem_price - product_pricing.vendor_price / product_pricing.Exchange_Rate - li.commission_fee
+                        if product_pricing and product_pricing.Cost:
+
+                            li.profit = li.lineitem_quantity * li.lineitem_price - product_pricing.Cost.Vendor_price / product_pricing.Exchange_Rate - li.commission_fee - product_pricing.Cost.Self_shipping_cost * li.lineitem_quantity / order.quantity
+                            order.order_profit += li.profit
+
+                        else:
+                            # 没有找到商品成本
+                            li.profit = li.lineitem_quantity * li.lineitem_price - li.commission_fee
                             order.order_profit += li.profit
 
                     li.save()
@@ -265,9 +281,10 @@ class Influencer(Document):
                         product_details.commission_fee -= li.commission_fee
 
                     # 找成本的实例
-                    product_pricing = Product_Pricing.objects(Product_List__sku=li.lineitem_sku).first()
-                    if product_pricing:
-                        order.order_profit = 0
+                    # product_pricing = Product_Pricing.objects(Product_List__sku=li.lineitem_sku).first()
+                    # if product_pricing:
+                    # 这里有些问题，部分退款等问题
+                    order.order_profit = 0
 
                 li.commission_fee == 0
                 li.save()

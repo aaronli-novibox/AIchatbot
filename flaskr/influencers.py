@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from flaskr.product_mongo import *
+from bson import SON
 
 
 # update in everyday
@@ -201,7 +202,7 @@ class track_orders:
 
         return list(result)
 
-    def sales_chart(self, promo_code, username, days):
+    def sales_chart(self, promo_code, days):
 
         influencer = Influencer.objects(promo_code=promo_code).first()
 
@@ -210,78 +211,91 @@ class track_orders:
 
         # 获取过去30天内的订单
         thirty_days_ago = datetime.now() - timedelta(days)
+        print(thirty_days_ago)
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
 
-        pipeline = [{
-            "$match": {
-                "_id": influencer.id,
-                "orders.closedAt": {
-                    "$gte": thirty_days_ago
-                },
-                "orders.displayFinancialStatus": {
-                    "$in": ["PAID", "PARTIALLY_REFUNDED"]
+        pipeline = [
+            {
+                "$match": {
+                    "_id": influencer.id,
                 }
-            }
-        }, {
-            "$unwind": "$orders"
-        }, {
-            "$match": {
-                "orders.closedAt": {
-                    "$gte": thirty_days_ago
-                },
-                "orders.displayFinancialStatus": {
-                    "$in": ["PAID", "PARTIALLY_REFUNDED"]
+            },
+            {
+                "$unwind": "$orders"
+            },
+            {
+                "$lookup": {
+                    "from": "order",    # Order 类对应的集合名称
+                    "localField": "orders.order",
+                    "foreignField": "_id",
+                    "as": "order_details"
                 }
-            }
-        }, {
-            "$group": {
-                "_id": {
-                    "year": {
-                        "$year": "$orders.closedAt"
+            },
+            {
+                "$unwind": "$order_details"
+            },
+            {
+                "$match": {
+                    "order_details.closedAt": {
+                        "$gte": thirty_days_ago
                     },
-                    "month": {
-                        "$month": "$orders.closedAt"
-                    },
-                    "day": {
-                        "$dayOfMonth": "$orders.closedAt"
+                    "order_details.displayFinancialStatus": {
+                        "$in": ["PAID", "PARTIALLY_REFUNDED"]
                     }
-                },
-                "total_orders": {
-                    "$sum": 1
-                },
-                "total_profit": {
-                    "$sum": "$orders.order_profit"
+                }
+            },
+            {
+                "$group": {
+                    "_id": {
+                        "year": {
+                            "$year": "$order_details.closedAt"
+                        },
+                        "month": {
+                            "$month": "$order_details.closedAt"
+                        },
+                        "day": {
+                            "$dayOfMonth": "$order_details.closedAt"
+                        }
+                    },
+                    "total_orders": {
+                        "$sum": 1
+                    },
+                    "total_profit": {
+                        "$sum": "$order_details.order_profit"
+                    }
+                }
+            },
+            {
+                "$project": {
+                    "_id": 0,
+                    "date": {
+                        "$dateFromParts": {
+                            "year": "$_id.year",
+                            "month": "$_id.month",
+                            "day": "$_id.day"
+                        }
+                    },
+                    "total_orders": 1,
+                    "total_profit": 1,
+                }
+            },
+            {
+                "$sort": {
+                    "date": 1
                 }
             }
-        }, {
-            "$project": {
-                "_id": 0,
-                "date": {
-                    "$dateFromParts": {
-                        "year": "$_id.year",
-                        "month": "$_id.month",
-                        "day": "$_id.day"
-                    }
-                },
-                "total_orders": 1,
-                "total_profit": 1
-            }
-        }, {
-            "$sort": {
-                "date": 1
-            }
-        }]
+        ]
 
         # 执行聚合管道
-        result = list(Influencer._get_collection().aggregate(pipeline))
-
+        result = list(Influencer.objects.aggregate(pipeline))
         # 将结果转换为字典，以便快速查找
         result_dict = {
             item['date'].strftime('%Y-%m-%d'): item for item in result
         }
-
         # 生成过去30天的日期列表
-        dates = [(datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
-                 for i in range(30)]
+        dates = [(thirty_days_ago + timedelta(days=i)).strftime('%Y-%m-%d')
+                 for i in range(days)]
 
         # 初始化结果列表
         total_orders_list = []
@@ -315,58 +329,78 @@ class track_orders:
         if influencer is None:
             return {"message": "Influencer not found"}, 400
 
-        pipeline = [{
-            "$match": {
-                "_id": influencer.id
-            }
-        }, {
-            "$unwind": "$orders"
-        }, {
-            "$match": {
-                "orders.closedAt": {
-                    "$gte": thirty_days_ago
-                },
-                "orders.displayFinancialStatus": {
-                    "$in": ["PAID", "PARTIALLY_REFUNDED"]
+        pipeline = [
+            {
+                "$match": {
+                    "_id": influencer.id
+                }
+            },
+            {
+                "$unwind": "$orders"
+            },
+            {
+                "$lookup": {
+                    "from": "order",    # Order 类对应的集合名称
+                    "localField": "orders.order",
+                    "foreignField": "_id",
+                    "as": "order_details"
+                }
+            },
+            {
+                "$unwind": "$order_details"
+            },
+            {
+                "$match": {
+                    "order_details.closedAt": {
+                        "$gte": thirty_days_ago
+                    },
+                    "order_details.displayFinancialStatus": {
+                        "$in": ["PAID", "PARTIALLY_REFUNDED"]
+                    }
+                }
+            },
+            {
+                "$unwind": "$order_details.lineitem"
+            },
+            {
+                "$lookup": {
+                    "from": "line_item",
+                    "localField": "order_details.lineitem",
+                    "foreignField": "_id",
+                    "as": "lineitem_details"
+                }
+            },
+            {
+                "$unwind": "$lineitem_details"
+            },
+            {
+                "$group": {
+                    "_id": "$lineitem_details.lineitem_sku",
+                    "total_quantity": {
+                        "$sum": "$lineitem_details.lineitem_quantity"
+                    },
+                    "total_profit": {
+                        "$sum": "$lineitem_details.profit"
+                    },
+                    "commissions": {
+                        "$sum": "$lineitem_details.commission_fee"
+                    }
+                }
+            },
+            {
+                "$project": {
+                    "_id": 0,
+                    "product": "$_id",
+                    "total_quantity": 1,
+                    "total_profit": 1,
+                    "commissions": 1
                 }
             }
-        }, {
-            "$unwind": "$orders.lineitems"
-        }, {
-            "$lookup": {
-                "from": "line_item",
-                "localField": "orders.lineitems",
-                "foreignField": "_id",
-                "as": "lineitem_details"
-            }
-        }, {
-            "$unwind": "$lineitem_details"
-        }, {
-            "$group": {
-                "_id": "$lineitem_details.product",
-                "total_quantity": {
-                    "$sum": "$lineitem_details.lineitem_quantity"
-                },
-                "total_profit": {
-                    "$sum": "$lineitem_details.profit"
-                },
-                "commissions": {
-                    "$addToSet": "$lineitem_details.commission"
-                }
-            }
-        }, {
-            "$project": {
-                "_id": 0,
-                "product": "$_id",
-                "total_quantity": 1,
-                "total_profit": 1,
-                "commissions": 1
-            }
-        }]
+        ]
 
         # 执行聚合管道
 
-        result = list(Influencer._get_collection().aggregate(pipeline))
+        result = list(Influencer.objects.aggregate(pipeline))
 
         # 打印结果
         for item in result:
@@ -425,7 +459,8 @@ class track_orders:
 
     # update product contract
     # start_time, end_time, commisson_rate, influencer
-    def update_contract(self, start_time, end_time, commission_rate, promo_code, product_sid):
+    def update_contract(self, start_time, end_time, commission_rate, promo_code,
+                        product_sid):
         product = Product.objects(shopify_id=product_sid).first()
         influencer = Influencer.objects(promo_code=promo_code).first()
 
@@ -453,7 +488,11 @@ class track_orders:
         influencer.save()
         return {"message": "Product contract updated"}, 200
 
-    def review_contract(self, promo_code, product_sid, review_result, clean=False):
+    def review_contract(self,
+                        promo_code,
+                        product_sid,
+                        review_result,
+                        clean=False):
         product = Product.objects(shopify_id=product_sid).first()
         influencer = Influencer.objects(promo_code=promo_code).first()
 
