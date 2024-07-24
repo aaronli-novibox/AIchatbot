@@ -218,8 +218,7 @@ class Influencer(Document):
                         # 找成本的实例
                         product_pricing = Product_Pricing.objects(Product_List__sku=li.lineitem_sku).first()
                         if product_pricing:
-                            li.profit = li.lineitem_quantity * li.lineitem_price - product_pricing.vendor_price - li.commission_fee
-                            self.total_profit += li.profit
+                            li.profit = li.lineitem_quantity * li.lineitem_price - product_pricing.vendor_price / product_pricing.Exchange_Rate - li.commission_fee
                             order.total_profit += li.profit
 
                     else:
@@ -232,9 +231,10 @@ class Influencer(Document):
                         # 增加class中的total_commission
                         self.total_commission += li.commission_fee
 
+                        # 找成本的实例
+                        product_pricing = Product_Pricing.objects(Product_List__sku=li.lineitem_sku).first()
                         if product_pricing:
-                            li.profit = li.lineitem_quantity * li.lineitem_price - product_pricing.vendor_price - li.commission_fee
-                            self.total_profit += li.profit
+                            li.profit = li.lineitem_quantity * li.lineitem_price - product_pricing.vendor_price / product_pricing.Exchange_Rate - li.commission_fee
                             order.order_profit += li.profit
 
                     li.save()
@@ -264,8 +264,9 @@ class Influencer(Document):
                     if product_details:
                         product_details.commission_fee -= li.commission_fee
 
+                    # 找成本的实例
+                    product_pricing = Product_Pricing.objects(Product_List__sku=li.lineitem_sku).first()
                     if product_pricing:
-                        self.total_profit -= li.profit
                         order.order_profit = 0
 
                 li.commission_fee == 0
