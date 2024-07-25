@@ -276,7 +276,8 @@ def get_all_influencer_products(search_term=''):
                     'total_products': "0",
                     'total_commission': "0",
                     'earning': "0",
-                    'review_status': product.video_exposure,
+                    'pre_commission': product.pre_commission,
+                    'review_status': product.review_status,
                 }
 
                 normalized_search_term = search_term.strip().lower()
