@@ -4,6 +4,8 @@ from mongoengine import Document, ValidationError, EmbeddedDocument, LazyReferen
 from datetime import datetime, timedelta
 import calendar
 from .table import *
+from django.db.models import Prefetch
+from mongoengine import Q
 
 # fmt: off
 
@@ -128,42 +130,6 @@ class Influencer(Document):
                 # else:
                 #     print(product_order['Name'])
         return orderlist
-
-    def get_all_orderlist(self, search_term=''):
-        all_orderlists = []
-        influencers = Influencer.objects()
-
-        for influencer in influencers:
-            all_orders = influencer.orders
-            for order_info in all_orders:
-                order = order_info.order  # Ensure OrderInfo has a reference to Order
-                for li in order.lineitem:  # Ensure Order has a list of LineItem
-                    product_order = {}  # Order per product
-                    product_order['name'] = li.lineitem_name
-                    product_order['id'] = li.lineitem_sku
-                    product_order['unit_price'] = float(li.lineitem_price)
-                    product_order[
-                        'status'] = order.displayFinancialStatus.value if order.displayFinancialStatus else None  # Convert to string
-                    product_order['paid_at'] = order.createdAt.strftime("%Y-%m-%d") if order.createdAt else 'N/A'
-                    product_order['fulfilled_at'] = order.closedAt.strftime("%Y-%m-%d") if order.closedAt else 'N/A'
-                    product_order['purchased'] = li.lineitem_quantity
-                    product_order['total_price'] = float(li.lineitem_quantity * li.lineitem_price)
-                    product_order['commission_rate'] = li.commission
-                    product_order['commissions'] = li.commission_fee
-
-                    # Fetch the Product document lazily
-                    product = li.product.fetch() if li.product else None
-                    if product:
-                        product_order['onlineStoreUrl'] = product.onlineStoreUrl if product.onlineStoreUrl else ''
-                        product_order['featuredImage'] = product.featuredImage.url if product.featuredImage else None
-
-                        # Normalize and filter search term
-                        normalized_search_term = search_term.strip().lower()
-                        if not normalized_search_term or normalized_search_term in product_order['name'].lower():
-                            product_order['influencer_username'] = influencer.influencer_name
-                            all_orderlists.append(product_order)
-
-        return all_orderlists
 
     # 来一笔新订单，更新influencer的信息，webhook
     def append_order(self, order):

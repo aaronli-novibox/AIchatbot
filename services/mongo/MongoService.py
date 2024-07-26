@@ -6,6 +6,7 @@ from mongoengine import Q
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import math
+from datetime import datetime
 
 
 # return cursor type, and filter '_id' field
@@ -586,3 +587,55 @@ def get_last_month_orders(month):
         )
         total_quantity = sum(order.quantity for order in total_orders)
         return total_orders.count(), total_quantity
+
+def get_all_orderlist(search_term=''):
+    normalized_search_term = search_term.strip().lower()
+    pipeline = [
+        {"$match": {"role": {"$ne": "admin"}}},  # Adjust based on your user role checks
+        {"$unwind": "$orders"},
+        {"$lookup": {
+            "from": Order._get_collection_name(),
+            "localField": "orders.order",
+            "foreignField": "_id",
+            "as": "orderDetails"
+        }},
+        {"$unwind": "$orderDetails"},
+        {"$unwind": "$orderDetails.lineitem"},
+        {"$lookup": {
+            "from": "line_item",  # Make sure this is the correct collection name for line items
+            "localField": "orderDetails.lineitem",
+            "foreignField": "_id",
+            "as": "lineItemDetails"
+        }},
+        {"$unwind": "$lineItemDetails"},
+        {"$lookup": {
+            "from": "product",  # Correct collection name for products
+            "localField": "lineItemDetails.product",
+            "foreignField": "_id",
+            "as": "productDetails"
+        }},
+        {"$unwind": "$productDetails"},
+        {"$match": {
+            "lineItemDetails.lineitem_name": {"$regex": normalized_search_term, "$options": "i"}
+        }},
+        {"$project": {
+            "_id": 0,
+            "name": "$lineItemDetails.lineitem_name",
+            "id": "$lineItemDetails.lineitem_sku",
+            "unit_price": "$lineItemDetails.lineitem_price",
+            "status": "$orderDetails.displayFinancialStatus",
+            "paid_at": {"$dateToString": {"format": "%Y-%m-%d", "date": "$orderDetails.createdAt"}},
+            "fulfilled_at": {"$dateToString": {"format": "%Y-%m-%d", "date": "$orderDetails.closedAt"}},
+            "purchased": "$lineItemDetails.lineitem_quantity",
+            "total_price": {"$multiply": ["$lineItemDetails.lineitem_quantity", "$lineItemDetails.lineitem_price"]},
+            "commission_rate": "$lineItemDetails.commission",
+            "commissions": "$lineItemDetails.commission_fee",
+            "influencer_username": "$influencer_name",
+            "onlineStoreUrl": "$productDetails.onlineStoreUrl",
+            "featuredImage": "$productDetails.featuredImage.url"
+        }}
+    ]
+
+    result = Influencer._get_collection().aggregate(pipeline)
+    result = list(result)
+    return result
