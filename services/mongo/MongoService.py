@@ -581,7 +581,7 @@ def get_all_orderlist(search_term=''):
         {"$match": {"role": {"$ne": "admin"}}},  # Adjust based on your user role checks
         {"$unwind": "$orders"},
         {"$lookup": {
-            "from": Order._get_collection_name(),
+            "from": "order",
             "localField": "orders.order",
             "foreignField": "_id",
             "as": "orderDetails"
@@ -623,6 +623,6 @@ def get_all_orderlist(search_term=''):
         }}
     ]
 
-    result = Influencer._get_collection().aggregate(pipeline)
+    result = Influencer.objects.aggregate(pipeline)
     result = list(result)
     return result
