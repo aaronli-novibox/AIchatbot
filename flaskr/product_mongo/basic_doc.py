@@ -294,6 +294,7 @@ class LineItem(Document):
     variant = LazyReferenceField('ProductVariant')
     commission_fee = FloatField(required=True, help_text="The commission fee = price*quantity*commission", default=0)
     commission = StringField(help_text='commission of commission fee')
+    profit = FloatField(help_text="The profit = 售价-成本-commission fee", default=0)
 
 
 

@@ -264,6 +264,7 @@ def get_all_influencer_products(search_term=''):
                 product_info = {
                     'title': product.product.title,
                     'username': influencer.influencer_name,
+                    'promo_code': influencer.promo_code,
                     'commission_rate': product.commission,
                     'product_id': product.product.shopify_id,
                     'start_time': product.product_contract_start.strftime("%Y-%m-%d") if product.product_contract_start else "N/A",
@@ -275,7 +276,8 @@ def get_all_influencer_products(search_term=''):
                     'total_products': "0",
                     'total_commission': "0",
                     'earning': "0",
-                    'review_status': product.video_exposure,
+                    'pre_commission': product.pre_commission,
+                    'review_status': product.review_status,
                 }
 
                 normalized_search_term = search_term.strip().lower()

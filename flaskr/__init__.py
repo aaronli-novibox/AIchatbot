@@ -836,16 +836,17 @@ def create_app(test_config=None):
     @app.route('/last30', methods=['GET'])
     def last30():
 
+        # print(tracker.result_30)
         return jsonify({'data': tracker.result_30}), 200
 
     @app.route('/last60', methods=['GET'])
     def last60():
-
+        # print(tracker.result_60)
         return jsonify({'data': tracker.result_60}), 200
 
     @app.route('/last90', methods=['GET'])
     def last90():
-
+        # print(tracker.result_90)
         return jsonify({'data': tracker.result_90}), 200
 
     @app.route('/topseller30', methods=['GET'])
@@ -896,6 +897,27 @@ def create_app(test_config=None):
                                                     req['commission_rate'],
                                                     req['promo_code'],
                                                     req['product_id'])
+        return jsonify(res), status_code
+
+    @app.route('/update_contract', methods=['POST'])
+    def update_product_contract():
+        req = request.get_json()
+        res, status_code = tracker.update_contract(req['start_time'],
+                                                    req['end_time'],
+                                                    req['commission_rate'],
+                                                    req['promo_code'],
+                                                    req['product_id'])
+        return jsonify(res), status_code
+
+    @app.route('/review_contract', methods=['POST'])
+    def review_product_contract():
+        req = request.get_json()
+        review_result = req.get('review_result')
+        clean = req.get('clean', False)
+        res, status_code = tracker.review_contract(req['promo_code'],
+                                                   req['product_id'],
+                                                   review_result,
+                                                   clean)
         return jsonify(res), status_code
 
     #########################################################

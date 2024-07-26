@@ -3,6 +3,7 @@ from .mongo_doc import *
 from mongoengine import Document, ValidationError, EmbeddedDocument, LazyReferenceField, EmbeddedDocumentField, ReferenceField, DoesNotExist, StringField, ListField, BinaryField, DecimalField, FloatField
 from datetime import datetime, timedelta
 import calendar
+from .table import *
 
 # fmt: off
 
@@ -185,10 +186,13 @@ class Influencer(Document):
             self.order_nums +=1
 
             for li in order.lineitem:
+                order.quantity += li.lineitem_quantity
+
+            for li in order.lineitem:
 
                 # 增加class中的order_nums
                 self.product_nums += li.lineitem_quantity
-                order.quantity += li.lineitem_quantity
+                # order.quantity += li.lineitem_quantity
                 self.promo_code_used += 1
 
                 # 找到对应的product
@@ -214,6 +218,19 @@ class Influencer(Document):
                         # 增加class中的total_commission
                         self.total_commission += li.commission_fee
 
+                        # 找成本的实例
+                        product_pricing = Product_Pricing.objects(Product_List__sku=li.lineitem_sku).first()
+                        if product_pricing and product_pricing.Cost:
+
+                            li.profit = li.lineitem_quantity * li.lineitem_price - product_pricing.Cost.Vendor_price / product_pricing.Exchange_Rate - li.commission_fee - product_pricing.Cost.Self_shipping_cost * li.lineitem_quantity / order.quantity
+                            order.order_profit += li.profit
+
+                        else:
+                            # 没有找到商品成本
+                            li.profit = li.lineitem_quantity * li.lineitem_price - li.commission_fee
+                            order.order_profit += li.profit
+
+
                     else:
                         li.commission = '8%'
                         li.commission_fee = 0.08 * li.lineitem_quantity * li.lineitem_price
@@ -223,6 +240,18 @@ class Influencer(Document):
 
                         # 增加class中的total_commission
                         self.total_commission += li.commission_fee
+
+                        # 找成本的实例
+                        product_pricing = Product_Pricing.objects(Product_List__sku=li.lineitem_sku).first()
+                        if product_pricing and product_pricing.Cost:
+
+                            li.profit = li.lineitem_quantity * li.lineitem_price - product_pricing.Cost.Vendor_price / product_pricing.Exchange_Rate - li.commission_fee - product_pricing.Cost.Self_shipping_cost * li.lineitem_quantity / order.quantity
+                            order.order_profit += li.profit
+
+                        else:
+                            # 没有找到商品成本
+                            li.profit = li.lineitem_quantity * li.lineitem_price - li.commission_fee
+                            order.order_profit += li.profit
 
                     li.save()
                     order.save(validate=False)
@@ -251,6 +280,12 @@ class Influencer(Document):
                     if product_details:
                         product_details.commission_fee -= li.commission_fee
 
+                    # 找成本的实例
+                    # product_pricing = Product_Pricing.objects(Product_List__sku=li.lineitem_sku).first()
+                    # if product_pricing:
+                    # 这里有些问题，部分退款等问题
+                    order.order_profit = 0
+
                 li.commission_fee == 0
                 li.save()
                 order.save(validate=False)
@@ -261,50 +296,51 @@ class Influencer(Document):
         if order.displayFinancialStatus.value == "PAID":
             for li in order.lineitem:
 
-                    # 增加class中的order_nums
-                    if self.product_nums == 0:
-                        self.product_nums += li.lineitem_quantity
-                    #order.quantity += li.lineitem_quantity
+                # 增加class中的order_nums
+                if self.product_nums == 0:
+                    self.product_nums += li.lineitem_quantity
+                #order.quantity += li.lineitem_quantity
 
-                    # 找到对应的product
-                    product = li.product
-                    try:
-                        _ = product.title
-                    except:
-                        product = li.product.fetch() if li.product else None
-                    if product:
-                        # 更新product的amount
-                        # product.amount += li.lineitem_quantity
-                        # product.revenue += li.lineitem_quantity * li.lineitem_price
+                # 找到对应的product
+                product = li.product.fetch() if li.product else None
+                if product:
+                    # 更新product的amount
+                    print('Product Found:', product.title)
+                    if product.amount == 0:
+                        product.amount += li.lineitem_quantity
+                    if product.revenue == 0:
+                        product.revenue += li.lineitem_quantity * li.lineitem_price
 
-                        # 以下是签约的产品
-                        product_details = self.find_product(product.id)
-                        if product_details and product_details.product_contract_start <= order.createdAt and product_details.product_contract_end >= order.createdAt:
-                            if not li.commission or li.commission == 0:
-                                li.commission = product_details.commission
-                                li.commission_fee =(float(product_details.commission.replace('%', '')) /
-                                    100) * li.lineitem_quantity * li.lineitem_price
+                    # 以下是签约的产品
+                    product_details = self.find_product(product.id)
+                    print('commission: ', order.order_commission_fee)
+                    if product_details and product_details.product_contract_start <= order.createdAt and product_details.product_contract_end >= order.createdAt:
+                        print('signed product')
+                        if li.commission == 0:
+                            print()
+                            li.commission = product_details.commission
+                            li.commission_fee =(float(product_details.commission.replace('%', '')) /
+                                100) * li.lineitem_quantity * li.lineitem_price
 
-                                order.order_commission_fee += li.commission_fee
+                            order.order_commission_fee += li.commission_fee
 
-                                product_details.commission_fee += li.commission_fee
+                            product_details.commission_fee += li.commission_fee
 
-                                # 增加class中的total_commission
-                                self.total_commission += li.commission_fee
+                            # 增加class中的total_commission
+                            self.total_commission += li.commission_fee
 
-                        else:
-                            if not li.commission or li.commission == 0:
-                                li.commission = '8%'
-                                li.commission_fee = 0.08 * li.lineitem_quantity * li.lineitem_price
-                                order.order_commission_fee += li.commission_fee
+                    else:
+                        if li.commission == 0:
+                            li.commission = '8%'
+                            li.commission_fee = 0.08 * li.lineitem_quantity * li.lineitem_price
+                            order.order_commission_fee += li.commission_fee
 
-                                # 增加class中的total_commission
-                                self.total_commission += li.commission_fee
+                            # 增加class中的total_commission
+                            self.total_commission += li.commission_fee
 
-                        li.save()
-                        order.save(validate=False)
-                        #product.save()
-                        
+                    li.save()
+                    order.save(validate=False)
+
     def find_product(self, product_id):
 
         for ip in self.product:
