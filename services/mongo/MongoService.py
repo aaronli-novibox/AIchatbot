@@ -50,22 +50,38 @@ def getInfluencerListFromMongoDB():
 
 
 def search_influencerList(search='', status=''):
-    query = Q()
-    q = Q(role__ne='admin')
-    query &= q
+    match_stage = {'role': {'$ne': 'admin'}}
+    
     if search:
         regex_pattern = f".*{search}.*"
-        # 使用 Q 对象来构建 OR 查询，并进行不区分大小写的模糊搜索
-        search_query = Q(influencer_name__iregex=regex_pattern) | Q(promo_code__iregex=regex_pattern)
-        query &= search_query
+        search_query = {
+            '$or': [
+                {'influencer_name': {'$regex': regex_pattern, '$options': 'i'}},
+                {'promo_code': {'$regex': regex_pattern, '$options': 'i'}}
+            ]
+        }
+        match_stage.update(search_query)
 
     if status:
-        status_query = Q(role=status)
-        query &= status_query
-
-    # 没有搜索词则返回所有影响者，并排除特定字段
-    influencers = Influencer.objects(query).exclude('id', 'password', 'orders', 'product')
-    influencer_list = [influ.to_mongo().to_dict() for influ in influencers]
+        match_stage['role'] = status
+    
+    pipeline = [
+        {'$match': match_stage},
+        {'$project': {
+            'influencer_name': 1,
+            'promo_code': 1,
+            'order_nums': 1,
+            'phone': 1,
+            'role': 1,
+            'total_commission': 1,
+            'avatar': 1,
+            '_id': 0
+        }},
+        {'$sort': {'order_nums': -1}}
+    ]
+    
+    influencers = Influencer.objects.aggregate(pipeline)
+    influencer_list = list(influencers)
 
     return influencer_list
 

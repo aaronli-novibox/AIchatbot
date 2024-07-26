@@ -794,7 +794,7 @@ def create_app(test_config=None):
         search_term = data.get('search', '')
         role = data.get('role', '')
         status = data.get('status', '')
-        
+
         if role == 'admin':
             influencers = search_influencerList(search=search_term,
                                                 status=status)
