@@ -4,7 +4,6 @@ from mongoengine import Document, ValidationError, EmbeddedDocument, LazyReferen
 from datetime import datetime, timedelta
 import calendar
 from .table import *
-from django.db.models import Prefetch
 from mongoengine import Q
 
 # fmt: off
