@@ -238,23 +238,32 @@ def recommandGiftByUserInput(req, clientip):
 
     # 执行查询
     # results = g.db.dev.product.aggregate(query)
-    results_dict = Product.objects.aggregate(query)
-    results_dict = dict(results_dict)
-    current_app.logger.info(results_dict)
-    new_recommand_gifts, results = results_dict['ids'], results_dict['details']
+    results_cursor = Product.objects.aggregate(query)
+    results_list = list(results_cursor)
+
+    # 确保结果列表不为空
+    if results_list:
+        # 通常，结果列表中只有一个文档，因为你使用了 $group 阶段并且没有进一步的分组
+        results_dict = results_list[0]
+        new_recommand_gifts = results_dict.get('ids', [])
+        results = results_dict.get('details', [])
+    else:
+        new_recommand_gifts = []
+        results = []
 
     current_app.logger.info(new_recommand_gifts)
 
     add_recommand_gift(clientip, new_recommand_gifts)
+
     # 假设 results 是从 MongoDB 查询得到的结果
-    results_list = list(results)    # 将 CommandCursor 对象转换为列表
+    # results_list = list(results)    # 将 CommandCursor 对象转换为列表
 
     # 成功返回
     return {
         'code':
             '0000',
         'data': {
-            'result': results_list,
+            'result': results,
         },
         'msg':
             'The user\'s input is a description of the goods they need to purchase, and recommand success. 请求推荐礼物, 推荐成功'
