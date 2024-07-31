@@ -140,12 +140,17 @@ class Influencer(Document):
         # Check if the order is already in self.orders
         found = False
         for i, existing_order in enumerate(self.orders):
-            if existing_order.order.shopify_id == order.shopify_id:
-                # Replace the existing order with the new order
-                self.orders[i].order = order
-                found = True
+            try: 
+                if existing_order.order.shopify_id == order.shopify_id:
+                    # Replace the existing order with the new order
+                    self.orders[i].order = order
+                    found = True
+            except:
+                continue
 
         if not found and (order.displayFinancialStatus.value == "PAID" or order.displayFinancialStatus.value == "PARTIALLY_REFUNDED") :
+            if isinstance(order.createdAt, str):
+                order.createdAt = datetime.strptime(order.createdAt, '%Y-%m-%d %H:%M:%S')
             order_info = OrderInfo(order=order)
             self.orders.append(order_info)
             self.order_nums +=1
@@ -169,6 +174,7 @@ class Influencer(Document):
 
                     # 以下是签约的产品
                     product_details = self.find_product(product.id)
+
                     if product_details and product_details.product_contract_start <= order.createdAt and product_details.product_contract_end >= order.createdAt:
 
                         li.commission = product_details.commission
@@ -259,6 +265,9 @@ class Influencer(Document):
 
     def fake_data(self, order):
         if order.displayFinancialStatus.value == "PAID":
+            order_info = OrderInfo(order=order)
+            self.orders.append(order_info)
+            self.order_nums +=1
             for li in order.lineitem:
 
                 # 增加class中的order_nums

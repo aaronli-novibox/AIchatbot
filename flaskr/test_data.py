@@ -101,8 +101,7 @@ for index, row in data.iterrows():
         if not order:
             email = row['Email']
             displayFinancialStatus = row['Financial Status']
-            createdAt = row['Paid at']
-            createdAt = convert_edt_to_utc(createdAt)
+            createdAt = convert_edt_to_utc(row['Paid at'])
 
             displayFulfillmentStatus = row['Fulfillment Status']
             closedAt = row['Fulfilled at']
@@ -200,7 +199,7 @@ for index, row in data.iterrows():
         li.product = product
         li.variant = product_variant
 
-        li.commission = 0
+        li.commission = '8%'
         li.commission_fee = 0
 
         li.save(validate=False)
