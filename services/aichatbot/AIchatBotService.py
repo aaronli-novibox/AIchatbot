@@ -8,7 +8,9 @@ import shopify
 from pathlib import Path
 import json
 import time
+import redis
 from flaskr.product_mongo import *
+from .redisServer import *
 
 
 def flatten_data(data):
@@ -132,11 +134,11 @@ def userTyping(req):
 
 
 # 根据用户的聊天框输入推荐礼物
-def recommandGiftByUserInput(req):
+def recommandGiftByUserInput(req, clientip):
 
     user_typing = req["user_typing"]
 
-    print(user_typing)
+    history_gift = get_recommanded_gifts(clientip)
 
     content = f'''Here is a user's input:"{user_typing}", give me a list of 10 terms to describe the potential product. You must include the products mentioned in the input.'''
 
@@ -174,7 +176,10 @@ def recommandGiftByUserInput(req):
         },
         {
             "$match": {
-                "status": "ACTIVE"    # 先筛选状态为ACTIVE的文档
+                "status": "ACTIVE",    # 先筛选状态为ACTIVE的文档
+                "_id": {
+                    "$nin": history_gift
+                }    # 排除已推荐的礼物
             }
         },
         {
@@ -201,25 +206,41 @@ def recommandGiftByUserInput(req):
             }
         },
         {
+            "$group": {
+                "_id": None,
+                "ids": {
+                    "$push": "$_id"
+                },
+                "details": {
+                    "$push": {
+                        "description": "$description",
+                        "featureImage": "$featureImage",
+                        "shopify_id": "$shopify_id",
+                        "onlineStoreUrl": "$onlineStoreUrl",
+                        "priceRangeV2": "$priceRangeV2",
+                        "tags": "$tags",
+                        "title": "$title",
+                        "productType": "$productType",
+                        "featuredImage": "$featuredImage",
+                        "firstVariantId": "$firstVariantId"
+                    }
+                }
+            }
+        },
+        {
             "$project": {
-                "_id": 0,
-                "description": 1,
-                "featureImage": 1,
-                "shopify_id": 1,
-                "onlineStoreUrl": 1,
-                "priceRangeV2": 1,
-                "tags": 1,
-                "title": 1,
-                "productType": 1,
-                "featuredImage": 1,
-                "firstVariantId": 1    # 包含第一个variant_id
+                "_id": 0,    # 隐藏 _id 字段
+                "ids": 1,
+                "details": 1
             }
         }
     ]
 
     # 执行查询
     # results = g.db.dev.product.aggregate(query)
-    results = Product.objects.aggregate(query)
+    new_recommand_gifts, results = Product.objects.aggregate(query)
+
+    add_recommand_gift(clientip, new_recommand_gifts)
     # 假设 results 是从 MongoDB 查询得到的结果
     results_list = list(results)    # 将 CommandCursor 对象转换为列表
 

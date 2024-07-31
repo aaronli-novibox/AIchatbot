@@ -32,6 +32,7 @@ import hmac
 import hashlib
 from urllib.parse import urlencode
 from flaskr.influencers import track_orders
+import redis
 
 
 def load_model() -> FlagModel:
@@ -103,7 +104,11 @@ def create_app(test_config=None):
     # Serializer for creating the token
     s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
+    # connect mongoDB
     connect('dev', alias='default', host=app.config['MONGO_URI'])
+
+    # connect redis
+    app.redisClient = redis.Redis(host=app.config['REDIS_HOST'], port=app.config['REDIS_PORT'], password=app.config['REDIS_PASSWORD'], db=0)
 
     tracker = track_orders()
 
@@ -903,10 +908,10 @@ def create_app(test_config=None):
     def update_product_contract():
         req = request.get_json()
         res, status_code = tracker.update_contract(req['start_time'],
-                                                    req['end_time'],
-                                                    req['commission_rate'],
-                                                    req['promo_code'],
-                                                    req['product_id'])
+                                                   req['end_time'],
+                                                   req['commission_rate'],
+                                                   req['promo_code'],
+                                                   req['product_id'])
         return jsonify(res), status_code
 
     @app.route('/review_contract', methods=['POST'])
@@ -916,8 +921,7 @@ def create_app(test_config=None):
         clean = req.get('clean', False)
         res, status_code = tracker.review_contract(req['promo_code'],
                                                    req['product_id'],
-                                                   review_result,
-                                                   clean)
+                                                   review_result, clean)
         return jsonify(res), status_code
 
     #########################################################
@@ -955,8 +959,9 @@ def create_app(test_config=None):
     @app.route('/recommand-typing', methods=['POST'])
     def recommand_by_typing():
         data = request.get_json()
+        clientip = request.headers.get('X-Forwarded-For', request.remote_addr)
         try:
-            res, status_code = recommandGiftByUserInput(data)
+            res, status_code = recommandGiftByUserInput(data, clientip)
             return jsonify(res), status_code
         except Exception as error:
             return jsonify({
