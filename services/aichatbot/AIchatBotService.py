@@ -238,7 +238,10 @@ def recommandGiftByUserInput(req, clientip):
 
     # 执行查询
     # results = g.db.dev.product.aggregate(query)
-    new_recommand_gifts, results = Product.objects.aggregate(query)
+    results_dict = Product.objects.aggregate(query)
+    new_recommand_gifts, results = results_dict['ids'], results_dict['details']
+
+    current_app.logger.info(new_recommand_gifts)
 
     add_recommand_gift(clientip, new_recommand_gifts)
     # 假设 results 是从 MongoDB 查询得到的结果
