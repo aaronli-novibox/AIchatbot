@@ -19,8 +19,12 @@ def get_recommanded_gifts(user_ip, redis_client=None):
     if not redis_client:
         redis_client = current_app.redisClient
 
-    recommended_gifts_str = redis_client.lrange(
+    recommended_gifts_bytes = redis_client.lrange(
         f"user:{user_ip}:recommended_gifts", 0,
         -1)    # 如果第一次给这个user推荐礼物的话，会返回空列表
+
+    recommended_gifts_str = [
+        gift_id.decode('utf-8') for gift_id in recommended_gifts_bytes
+    ]
 
     return recommended_gifts_str
