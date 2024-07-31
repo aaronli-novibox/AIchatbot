@@ -942,9 +942,10 @@ def create_app(test_config=None):
     @app.route('/recommand-list', methods=['POST'])
     def recommand_by_list():
         req = request.json
+        clientip = request.headers.get('X-Forwarded-For', request.remote_addr)
         try:
             current_app.logger.info('recommand by list')
-            res, status_code = recommandGiftByList(req)
+            res, status_code = recommandGiftByList(req, clientip)
             return jsonify(res), status_code
         except Exception as error:
             return jsonify({'message': error}), 400
@@ -976,8 +977,9 @@ def create_app(test_config=None):
     @app.route('/gift-swip', methods=['POST'])
     def recommand_by_tags():
         data = request.get_json()
+        clientip = request.headers.get('X-Forwarded-For', request.remote_addr)
         try:
-            res, status_code = recommandGiftByTags(data)
+            res, status_code = recommandGiftByTags(data, clientip)
             return jsonify(res), status_code
         except Exception as error:
             return jsonify({'message': error}), 400

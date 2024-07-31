@@ -140,143 +140,138 @@ def recommandGiftByUserInput(req, clientip):
 
     history_gift = get_recommanded_gifts(clientip)
 
-    current_app.logger.info(history_gift)
+    # 初始化 FlagModel
+    emb_model = current_app.config['MODEL']
 
     content = f'''Here is a user's input:"{user_typing}", give me a list of 10 terms to describe the potential product. You must include the products mentioned in the input.'''
 
     if history_gift:
         content += f'''Besides I have recommanded some gifts in the list below {history_gift}. Please avoid them to recommand some new items.'''
 
-    stream = g.clientOpenAI.chat.completions.create(
-        model="gpt-4",
-        messages=[{
-            "role": "user",
-            "content": content
-        }],
-        stream=True,
-    )
+    while True:
 
-    # match the user flow's branch
-    typing_string_ = ""
-    for chunk in stream:
-        if chunk.choices[0].delta.content is not None:
-            typing_string_ = typing_string_ + chunk.choices[0].delta.content
-            print(chunk.choices[0].delta.content, end='')
+        stream = g.clientOpenAI.chat.completions.create(
+            model="gpt-4",
+            messages=[{
+                "role": "user",
+                "content": content
+            }],
+            stream=True,
+        )
 
-    # 初始化 FlagModel
-    emb_model = current_app.config['MODEL']
+        # match the user flow's branch
+        typing_string_ = ""
+        for chunk in stream:
+            if chunk.choices[0].delta.content is not None:
+                typing_string_ = typing_string_ + chunk.choices[0].delta.content
+                print(chunk.choices[0].delta.content, end='')
 
-    query_vector = emb_model.encode(typing_string_).astype(np.float64).tolist()
+        query_vector = emb_model.encode(typing_string_).astype(
+            np.float64).tolist()
 
-    # 构建聚合查询
-    query = [
-        {
-            "$vectorSearch": {
-                "index": "vector_index",
-                "path": "descriptionVector",
-                "queryVector": query_vector,
-                "numCandidates": 50,
-                "limit": 20
-            }
-        },
-        {
-            "$match": {
-                "status": "ACTIVE",    # 先筛选状态为ACTIVE的文档
-                "title": {
-                    "$nin": history_gift
-                }    # 排除已推荐的礼物
-            }
-        },
-        {
-            "$addFields": {
-                "similarityScore": {
-                    "$meta": "vectorSearchScore"
-                },
-            }
-        },
-        {
-            "$lookup": {
-                "from": "product_variant",
-                "localField": "variants",
-                "foreignField": "_id",
-                "as": "variantDetails"
-            }
-        },
-        {
-            "$addFields": {
-                "firstVariantId": {
-                    "$arrayElemAt": ["$variantDetails.shopify_id",
-                                     0]    # 获取variantDetails数组中的第一个元素的_id
+        # 构建聚合查询
+        query = [
+            {
+                "$vectorSearch": {
+                    "index": "vector_index",
+                    "path": "descriptionVector",
+                    "queryVector": query_vector,
+                    "numCandidates": 50,
+                    "limit": 20
                 }
-            }
-        },
-        {
-            "$group": {
-                "_id": None,
-                "ids": {
-                    "$push": "$title"
-                },
-                "details": {
-                    "$push": {
-                        "description": "$description",
-                        "featureImage": "$featureImage",
-                        "shopify_id": "$shopify_id",
-                        "onlineStoreUrl": "$onlineStoreUrl",
-                        "priceRangeV2": "$priceRangeV2",
-                        "tags": "$tags",
-                        "title": "$title",
-                        "productType": "$productType",
-                        "featuredImage": "$featuredImage",
-                        "firstVariantId": "$firstVariantId"
+            },
+            {
+                "$match": {
+                    "status": "ACTIVE",    # 先筛选状态为ACTIVE的文档
+                    "title": {
+                        "$nin": history_gift
+                    }    # 排除已推荐的礼物
+                }
+            },
+            {
+                "$addFields": {
+                    "similarityScore": {
+                        "$meta": "vectorSearchScore"
+                    },
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "product_variant",
+                    "localField": "variants",
+                    "foreignField": "_id",
+                    "as": "variantDetails"
+                }
+            },
+            {
+                "$addFields": {
+                    "firstVariantId": {
+                        "$arrayElemAt": ["$variantDetails.shopify_id",
+                                         0]    # 获取variantDetails数组中的第一个元素的_id
                     }
                 }
+            },
+            {
+                "$group": {
+                    "_id": None,
+                    "ids": {
+                        "$push": "$title"
+                    },
+                    "details": {
+                        "$push": {
+                            "description": "$description",
+                            "featureImage": "$featureImage",
+                            "shopify_id": "$shopify_id",
+                            "onlineStoreUrl": "$onlineStoreUrl",
+                            "priceRangeV2": "$priceRangeV2",
+                            "tags": "$tags",
+                            "title": "$title",
+                            "productType": "$productType",
+                            "featuredImage": "$featuredImage",
+                            "firstVariantId": "$firstVariantId"
+                        }
+                    }
+                }
+            },
+            {
+                "$project": {
+                    "_id": 0,    # 隐藏 _id 字段
+                    "ids": 1,
+                    "details": 1
+                }
             }
-        },
-        {
-            "$project": {
-                "_id": 0,    # 隐藏 _id 字段
-                "ids": 1,
-                "details": 1
-            }
-        }
-    ]
+        ]
 
-    # 执行查询
-    # results = g.db.dev.product.aggregate(query)
-    results_cursor = Product.objects.aggregate(query)
-    results_list = list(results_cursor)
+        # 执行查询
+        # results = g.db.dev.product.aggregate(query)
+        results_cursor = Product.objects.aggregate(query)
+        results_list = list(results_cursor)
 
-    # 确保结果列表不为空
-    if results_list:
-        # 通常，结果列表中只有一个文档，因为你使用了 $group 阶段并且没有进一步的分组
-        results_dict = results_list[0]
-        new_recommand_gifts = results_dict.get('ids', [])
-        results = results_dict.get('details', [])
-        add_recommand_gift(clientip, new_recommand_gifts)
+        # 确保结果列表不为空
+        if results_list:
+            # 通常，结果列表中只有一个文档，因为你使用了 $group 阶段并且没有进一步的分组
+            results_dict = results_list[0]
+            new_recommand_gifts = results_dict.get('ids', [])
+            results = results_dict.get('details', [])
+            add_recommand_gift(clientip, new_recommand_gifts)
 
-    else:
-        new_recommand_gifts = []
-        results = []
+            # 成功返回
+            return {
+                'code':
+                    '0000',
+                'data': {
+                    'result': results,
+                },
+                'msg':
+                    'The user\'s input is a description of the goods they need to purchase, and recommand success. 请求推荐礼物, 推荐成功'
+            }, 200
 
-    current_app.logger.info(new_recommand_gifts)
-
-    # 假设 results 是从 MongoDB 查询得到的结果
-    # results_list = list(results)    # 将 CommandCursor 对象转换为列表
-
-    # 成功返回
-    return {
-        'code':
-            '0000',
-        'data': {
-            'result': results,
-        },
-        'msg':
-            'The user\'s input is a description of the goods they need to purchase, and recommand success. 请求推荐礼物, 推荐成功'
-    }, 200
+        else:
+            continue
 
 
 # 根据用户提供的信息推荐礼物
-def recommandGiftByList(req):
+def recommandGiftByList(req, clientip):
 
     # get the user's input: relationship, interests, style are optional, if not provided, use default values
     gender = req.get("gender")
@@ -302,483 +297,560 @@ def recommandGiftByList(req):
     # 初始化 FlagModel
     emb_model = current_app.config['MODEL']
 
-    # 构建内容的各个部分
-    parts = [f"A product suitable for {age} {gender} individuals"]
+    flag = True    # 第一次推荐礼物的标志位
 
-    if interests:
-        # Check if interests is a list and has multiple items
-        if isinstance(interests, list):
-            if len(interests) > 1:
-                formatted_interests = ", ".join(
-                    interests[:-1]) + " and " + interests[-1]
+    while True:
+
+        # 构建内容的各个部分
+        parts = [f"A product suitable for {age} {gender} individuals"]
+
+        if interests:
+            # Check if interests is a list and has multiple items
+            if isinstance(interests, list):
+                if len(interests) > 1:
+                    formatted_interests = ", ".join(
+                        interests[:-1]) + " and " + interests[-1]
+                else:
+                    formatted_interests = interests[0]
             else:
-                formatted_interests = interests[0]
+                formatted_interests = interests    # assuming interests is a single string or similar
+
+            parts.append(f", who are interested in {formatted_interests}")
+
+        parts.append(f" and looking for something for {occasion}.")
+
+        if budget and flag:
+            parts.append(f" Considering the budget is {budget}")
+
+        if relationship:
+            parts.append(f", and it's meant for {relationship} relationships.")
         else:
-            formatted_interests = interests    # assuming interests is a single string or similar
+            parts.append(".")
 
-        parts.append(f", who are interested in {formatted_interests}")
+        if style and flag:
+            parts.append(f" The preferred style is {style}.")
 
-    parts.append(f" and looking for something for {occasion}.")
+        # 将所有部分组合成最终的内容字符串
+        content = "".join(
+            parts
+        ) + " How would you describe such a product? Please provide a description that captures the essence of these criteria."
 
-    if budget:
-        parts.append(f" Considering the budget is {budget}")
+        history_gift = get_recommanded_gifts(clientip)
 
-    if relationship is not None:
-        parts.append(f", and it's meant for {relationship} relationships.")
-    else:
-        parts.append(".")
+        if history_gift:
+            content += f'''Besides I have recommanded some gifts in the list below {history_gift}. Please avoid them to recommand some new items.'''
 
-    if style is not None:
-        parts.append(f" The preferred style is {style}.")
+        # 定义价格范围
+        if flag:
+            if budget == "<$20":
+                price_min = 0
+                price_max = 20
+            elif budget == "$20-$50":
+                price_min = 20
+                price_max = 50
+            elif budget == "$50-$100":
+                price_min = 50
+                price_max = 100
+            elif budget == "$100-$200":
+                price_min = 100
+                price_max = 200
+            elif budget == "Above $200":
+                price_min = 200
+                # 为 price_max 设置一个高值，或者可以根据应用场景决定是否需要上限
+                price_max = 1000000    # 假设作为一个高的上限值
 
-    # 将所有部分组合成最终的内容字符串
-    content = "".join(
-        parts
-    ) + " How would you describe such a product? Please provide a description that captures the essence of these criteria."
+        else:
+            price_min = None
+            price_max = None
 
-    # 定义价格范围
-    if budget == "<$20":
-        price_min = 0
-        price_max = 20
-    elif budget == "$20-$50":
-        price_min = 20
-        price_max = 50
-    elif budget == "$50-$100":
-        price_min = 50
-        price_max = 100
-    elif budget == "$100-$200":
-        price_min = 100
-        price_max = 200
-    elif budget == "Above $200":
-        price_min = 200
-        # 为 price_max 设置一个高值，或者可以根据应用场景决定是否需要上限
-        price_max = 1000000    # 假设作为一个高的上限值
+        stream = g.clientOpenAI.chat.completions.create(
+            model="gpt-4",
+            messages=[{
+                "role": "user",
+                "content": content
+            }],
+            stream=True,
+        )
+        project_string_ = ""
+        # print("I guess you need the commodity that\n")
 
-    print(f"Price range: {price_min} to {price_max}")
+        for chunk in stream:
+            if chunk.choices[0].delta.content is not None:
+                project_string_ = project_string_ + chunk.choices[
+                    0].delta.content
+                print(chunk.choices[0].delta.content, end='')
 
-    results_list = []
+        query_vector = emb_model.encode(project_string_).astype(
+            np.float64).tolist()
 
-    stream = g.clientOpenAI.chat.completions.create(
-        model="gpt-4",
-        messages=[{
-            "role": "user",
-            "content": content
-        }],
-        stream=True,
-    )
-    project_string_ = ""
-    # print("I guess you need the commodity that\n")
-
-    for chunk in stream:
-        if chunk.choices[0].delta.content is not None:
-            project_string_ = project_string_ + chunk.choices[0].delta.content
-            print(chunk.choices[0].delta.content, end='')
-
-    query_vector = emb_model.encode(project_string_).astype(np.float64).tolist()
-
-    # 构建聚合查询
-    query = [
-        {
-            "$vectorSearch": {
-                "index": "vector_index",
-                "path": "descriptionVector",
-                "queryVector": query_vector,
-                "numCandidates": 50,
-                "limit": 20
-            }
-        },
-        {
-            "$match": {
-                "priceRangeV2.minVariantPrice.currencyCode": "USD",
-                "priceRangeV2.maxVariantPrice.currencyCode": "USD",
-                "priceRangeV2.minVariantPrice.amount": {
-                    "$gte": price_min
-                },
-                "priceRangeV2.maxVariantPrice.amount": {
-                    "$lte": price_max
-                },
-                "status": "ACTIVE"
-            }
-        },
-        {
-            "$lookup": {
-                "from": "product_variant",
-                "localField": "variants",
-                "foreignField": "_id",
-                "as": "variantDetails"
-            }
-        },
-        {
-            "$lookup": {
-                "from": "product_option",
-                "localField": "options",
-                "foreignField": "_id",
-                "as": "optionsDetails"
-            }
-        },
-        {
-            "$lookup": {
-                "from": "metafield",
-                "localField": "metafields",
-                "foreignField": "_id",
-                "as": "metafieldsDetails"
-            }
-        },
-        {
-            "$addFields": {
-                "similarityScore": {
-                    "$meta": "vectorSearchScore"
-                },
-                "allVariantsUnavailable": {
-                    "$allElementsTrue": {
-                        "$map": {
-                            "input": "$variantDetails",
-                            "as": "variant",
+        # 构建聚合查询
+        query = [
+            {
+                "$vectorSearch": {
+                    "index": "vector_index",
+                    "path": "descriptionVector",
+                    "queryVector": query_vector,
+                    "numCandidates": 50,
+                    "limit": 20
+                }
+            },
+            {
+                "$match": {
+                    "priceRangeV2.minVariantPrice.currencyCode": "USD",
+                    "priceRangeV2.maxVariantPrice.currencyCode": "USD",
+                    "status": "ACTIVE",
+                    "title": {
+                        "$nin": history_gift
+                    },
+                    "$expr": {
+                        "$and": [{
+                            "$ne": [price_min, None]
+                        }, {
+                            "$gte": [
+                                "$priceRangeV2.minVariantPrice.amount",
+                                price_min
+                            ]
+                        }, {
+                            "$ne": [price_max, None]
+                        }, {
+                            "$lte": [
+                                "$priceRangeV2.maxVariantPrice.amount",
+                                price_max
+                            ]
+                        }]
+                    }
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "product_variant",
+                    "localField": "variants",
+                    "foreignField": "_id",
+                    "as": "variantDetails"
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "product_option",
+                    "localField": "options",
+                    "foreignField": "_id",
+                    "as": "optionsDetails"
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "metafield",
+                    "localField": "metafields",
+                    "foreignField": "_id",
+                    "as": "metafieldsDetails"
+                }
+            },
+            {
+                "$addFields": {
+                    "similarityScore": {
+                        "$meta": "vectorSearchScore"
+                    },
+                    "allVariantsUnavailable": {
+                        "$allElementsTrue": {
+                            "$map": {
+                                "input": "$variantDetails",
+                                "as": "variant",
+                                "in": {
+                                    "$not": "$$variant.availableForSale"
+                                }
+                            }
+                        }
+                    },
+                    "ratingValue": {
+                        "$let": {
+                            "vars": {
+                                "filteredMetafields": {
+                                    "$filter": {
+                                        "input": "$metafieldsDetails",
+                                        "as": "metafield",
+                                        "cond": {
+                                            "$and": [{
+                                                "$eq": [
+                                                    "$$metafield.key",
+                                                    "ratingValue"
+                                                ]
+                                            }, {
+                                                "$eq": [
+                                                    "$$metafield.namespace",
+                                                    "vitals"
+                                                ]
+                                            }]
+                                        }
+                                    }
+                                }
+                            },
                             "in": {
-                                "$not": "$$variant.availableForSale"
+                                "$ifNull": [{
+                                    "$arrayElemAt": [
+                                        "$$filteredMetafields.value", 0
+                                    ]
+                                }, None]
                             }
                         }
-                    }
-                },
-                "ratingValue": {
-                    "$let": {
-                        "vars": {
-                            "filteredMetafields": {
-                                "$filter": {
-                                    "input": "$metafieldsDetails",
-                                    "as": "metafield",
-                                    "cond": {
-                                        "$and": [{
-                                            "$eq": [
-                                                "$$metafield.key", "ratingValue"
-                                            ]
-                                        }, {
-                                            "$eq": [
-                                                "$$metafield.namespace",
-                                                "vitals"
-                                            ]
-                                        }]
+                    },
+                    "reviewCount": {
+                        "$let": {
+                            "vars": {
+                                "filteredMetafields": {
+                                    "$filter": {
+                                        "input": "$metafieldsDetails",
+                                        "as": "metafield",
+                                        "cond": {
+                                            "$and": [{
+                                                "$eq": [
+                                                    "$$metafield.key",
+                                                    "reviewCount"
+                                                ]
+                                            }, {
+                                                "$eq": [
+                                                    "$$metafield.namespace",
+                                                    "vitals"
+                                                ]
+                                            }]
+                                        }
                                     }
                                 }
+                            },
+                            "in": {
+                                "$ifNull": [{
+                                    "$arrayElemAt": [
+                                        "$$filteredMetafields.value", 0
+                                    ]
+                                }, 0]
                             }
-                        },
-                        "in": {
-                            "$ifNull": [{
-                                "$arrayElemAt": [
-                                    "$$filteredMetafields.value", 0
-                                ]
-                            }, None]
                         }
-                    }
-                },
-                "reviewCount": {
-                    "$let": {
-                        "vars": {
-                            "filteredMetafields": {
-                                "$filter": {
-                                    "input": "$metafieldsDetails",
-                                    "as": "metafield",
-                                    "cond": {
-                                        "$and": [{
-                                            "$eq": [
-                                                "$$metafield.key", "reviewCount"
-                                            ]
-                                        }, {
-                                            "$eq": [
-                                                "$$metafield.namespace",
-                                                "vitals"
-                                            ]
-                                        }]
+                    },
+                    "feature_test": {
+                        "$let": {
+                            "vars": {
+                                "filteredMetafields": {
+                                    "$filter": {
+                                        "input": "$metafieldsDetails",
+                                        "as": "metafield",
+                                        "cond": {
+                                            "$and": [{
+                                                "$eq": [
+                                                    "$$metafield.key",
+                                                    "feature_test"
+                                                ]
+                                            }, {
+                                                "$eq": [
+                                                    "$$metafield.namespace",
+                                                    "custom"
+                                                ]
+                                            }]
+                                        }
                                     }
                                 }
+                            },
+                            "in": {
+                                "$ifNull": [{
+                                    "$arrayElemAt": [
+                                        "$$filteredMetafields.value", 0
+                                    ]
+                                }, None]
                             }
-                        },
-                        "in": {
-                            "$ifNull": [{
-                                "$arrayElemAt": [
-                                    "$$filteredMetafields.value", 0
-                                ]
-                            }, 0]
                         }
-                    }
-                },
-                "feature_test": {
-                    "$let": {
-                        "vars": {
-                            "filteredMetafields": {
-                                "$filter": {
-                                    "input": "$metafieldsDetails",
-                                    "as": "metafield",
-                                    "cond": {
-                                        "$and": [{
-                                            "$eq": [
-                                                "$$metafield.key",
-                                                "feature_test"
-                                            ]
-                                        }, {
-                                            "$eq": [
-                                                "$$metafield.namespace",
-                                                "custom"
-                                            ]
-                                        }]
+                    },
+                    "additional_notes_test": {
+                        "$let": {
+                            "vars": {
+                                "filteredMetafields": {
+                                    "$filter": {
+                                        "input": "$metafieldsDetails",
+                                        "as": "metafield",
+                                        "cond": {
+                                            "$and": [{
+                                                "$eq": [
+                                                    "$$metafield.key",
+                                                    "additional_notes_test"
+                                                ]
+                                            }, {
+                                                "$eq": [
+                                                    "$$metafield.namespace",
+                                                    "custom"
+                                                ]
+                                            }]
+                                        }
                                     }
                                 }
+                            },
+                            "in": {
+                                "$ifNull": [{
+                                    "$arrayElemAt": [
+                                        "$$filteredMetafields.value", 0
+                                    ]
+                                }, None]
                             }
-                        },
-                        "in": {
-                            "$ifNull": [{
-                                "$arrayElemAt": [
-                                    "$$filteredMetafields.value", 0
-                                ]
-                            }, None]
                         }
-                    }
-                },
-                "additional_notes_test": {
-                    "$let": {
-                        "vars": {
-                            "filteredMetafields": {
-                                "$filter": {
-                                    "input": "$metafieldsDetails",
-                                    "as": "metafield",
-                                    "cond": {
-                                        "$and": [{
-                                            "$eq": [
-                                                "$$metafield.key",
-                                                "additional_notes_test"
-                                            ]
-                                        }, {
-                                            "$eq": [
-                                                "$$metafield.namespace",
-                                                "custom"
-                                            ]
-                                        }]
+                    },
+                    "specification_test": {
+                        "$let": {
+                            "vars": {
+                                "filteredMetafields": {
+                                    "$filter": {
+                                        "input": "$metafieldsDetails",
+                                        "as": "metafield",
+                                        "cond": {
+                                            "$and": [{
+                                                "$eq": [
+                                                    "$$metafield.key",
+                                                    "specification_test"
+                                                ]
+                                            }, {
+                                                "$eq": [
+                                                    "$$metafield.namespace",
+                                                    "custom"
+                                                ]
+                                            }]
+                                        }
                                     }
                                 }
+                            },
+                            "in": {
+                                "$ifNull": [{
+                                    "$arrayElemAt": [
+                                        "$$filteredMetafields.value", 0
+                                    ]
+                                }, None]
                             }
-                        },
-                        "in": {
-                            "$ifNull": [{
-                                "$arrayElemAt": [
-                                    "$$filteredMetafields.value", 0
-                                ]
-                            }, None]
-                        }
-                    }
-                },
-                "specification_test": {
-                    "$let": {
-                        "vars": {
-                            "filteredMetafields": {
-                                "$filter": {
-                                    "input": "$metafieldsDetails",
-                                    "as": "metafield",
-                                    "cond": {
-                                        "$and": [{
-                                            "$eq": [
-                                                "$$metafield.key",
-                                                "specification_test"
-                                            ]
-                                        }, {
-                                            "$eq": [
-                                                "$$metafield.namespace",
-                                                "custom"
-                                            ]
-                                        }]
-                                    }
-                                }
-                            }
-                        },
-                        "in": {
-                            "$ifNull": [{
-                                "$arrayElemAt": [
-                                    "$$filteredMetafields.value", 0
-                                ]
-                            }, None]
                         }
                     }
                 }
-            }
-        },
-        {
-            "$match": {
-                "allVariantsUnavailable": False
-            }
-        },
-        {
-            "$group": {
-                "_id": None,
-                "filtered": {
-                    "$push": "$$ROOT"
-                },
-                "count": {
-                    "$sum": 1
+            },
+            {
+                "$match": {
+                    "allVariantsUnavailable": False
                 }
-            }
-        },
-        {
-            "$project": {
-                "filtered": {
-                    "$cond": {
-                        "if": {
-                            "$gte": ["$count", 10]
-                        },
-                        "then": {
-                            "$slice": ["$filtered", 10]
-                        },
-                        "else": "$filtered"
+            },
+            {
+                "$group": {
+                    "_id": None,
+                    "filtered": {
+                        "$push": "$$ROOT"
+                    },
+                    "count": {
+                        "$sum": 1
                     }
                 }
-            }
-        },
-        {
-            "$unwind": "$filtered"
-        },
-        {
-            "$replaceRoot": {
-                "newRoot": "$filtered"
-            }
-        },
-        {
-            "$project": {
-                "_id": 0,
-                "description": 1,
-                "featureImage": 1,
-                "shopify_id": 1,
-                "onlineStoreUrl": 1,
-                "tags": 1,
-                "title": 1,
-                "productType": 1,
-                "featuredImage": 1,
-                "minPrice": "$priceRangeV2.minVariantPrice.amount",
-                "maxPrice": "$priceRangeV2.maxVariantPrice.amount",
-                "currencyCode": "$priceRangeV2.minVariantPrice.currencyCode",
-                "handle": 1,
-                "price": {
-                    "$arrayElemAt": ["$variantDetails.price", 0]
-                },
-                "reviews": 1,
-                "options": {
-                    "$map": {
-                        "input": "$optionsDetails",
-                        "as": "option",
-                        "in": {
-                            "position": "$$option.position",
-                            "name": "$$option.name",
-                            "values": "$$option.values"
+            },
+            {
+                "$project": {
+                    "filtered": {
+                        "$cond": {
+                            "if": {
+                                "$gte": ["$count", 10]
+                            },
+                            "then": {
+                                "$slice": ["$filtered", 10]
+                            },
+                            "else": "$filtered"
                         }
                     }
-                },
-                "images": {
-                    "$reduce": {
-                        "input": "$variantDetails",
-                        "initialValue": [],
-                        "in": {
-                            "$concatArrays": ["$$value", ["$$this.image"]]
+                }
+            },
+            {
+                "$unwind": "$filtered"
+            },
+            {
+                "$replaceRoot": {
+                    "newRoot": "$filtered"
+                }
+            },
+            {
+                "$group": {
+                    "_id": None,
+                    "ids": {
+                        "$push": "$title"
+                    },
+                    "details": {
+                        "$push": {
+                            "description":
+                                "$description",
+                            "featureImage":
+                                "$featureImage",
+                            "shopify_id":
+                                "$shopify_id",
+                            "onlineStoreUrl":
+                                "$onlineStoreUrl",
+                            "tags":
+                                "$tags",
+                            "title":
+                                "$title",
+                            "productType":
+                                "$productType",
+                            "featuredImage":
+                                "$featuredImage",
+                            "firstVariantId":
+                                "$firstVariantId",
+                            "minPrice":
+                                "$priceRangeV2.minVariantPrice.amount",
+                            "maxPrice":
+                                "$priceRangeV2.maxVariantPrice.amount",
+                            "currencyCode":
+                                "$priceRangeV2.minVariantPrice.currencyCode",
+                            "handle":
+                                1,
+                            "price": {
+                                "$arrayElemAt": ["$variantDetails.price", 0]
+                            },
+                            "reviews":
+                                1,
+                            "options": {
+                                "$map": {
+                                    "input": "$optionsDetails",
+                                    "as": "option",
+                                    "in": {
+                                        "position": "$$option.position",
+                                        "name": "$$option.name",
+                                        "values": "$$option.values"
+                                    }
+                                }
+                            },
+                            "images": {
+                                "$reduce": {
+                                    "input": "$variantDetails",
+                                    "initialValue": [],
+                                    "in": {
+                                        "$concatArrays": [
+                                            "$$value", ["$$this.image"]
+                                        ]
+                                    }
+                                }
+                            },
+        # "metafields": {
+        #     "$map": {
+        #         "input": "$metafieldsDetails",
+        #         "as": "metafield",
+        #         "in": {
+        #             "namespace": "$$metafield.namespace",
+        #             "key": "$$metafield.key",
+        #             "value": "$$metafield.value"
+        #         }
+        #     }
+        # },
+                            "variants": {
+                                "$map": {
+                                    "input": "$variantDetails",
+                                    "as": "variant",
+                                    "in": {
+                                        "shopify_id":
+                                            "$$variant.shopify_id",
+                                        "available":
+                                            "$$variant.availableForSale",
+                                        "price":
+                                            "$$variant.price",
+                                        "compareAtPrice":
+                                            "$$variant.compareAtPrice",
+                                        "image":
+                                            "$$variant.image",
+                                        "title":
+                                            "$$variant.title"
+                                    }
+                                }
+                            },
+                            "ratingValue":
+                                1,
+                            "reviewCount":
+                                1,
+                            "feature":
+                                "$feature_test",
+                            "additional_notes":
+                                "$additional_notes_test",
+                            "specification":
+                                "$specification_test"
                         }
                     }
-                },
-    # "metafields": {
-    #     "$map": {
-    #         "input": "$metafieldsDetails",
-    #         "as": "metafield",
-    #         "in": {
-    #             "namespace": "$$metafield.namespace",
-    #             "key": "$$metafield.key",
-    #             "value": "$$metafield.value"
-    #         }
-    #     }
-    # },
-                "variants": {
-                    "$map": {
-                        "input": "$variantDetails",
-                        "as": "variant",
-                        "in": {
-                            "shopify_id": "$$variant.shopify_id",
-                            "available": "$$variant.availableForSale",
-                            "price": "$$variant.price",
-                            "compareAtPrice": "$$variant.compareAtPrice",
-                            "image": "$$variant.image",
-                            "title": "$$variant.title"
-                        }
-                    }
-                },
-                "ratingValue": 1,
-                "reviewCount": 1,
-                "feature": "$feature_test",
-                "additional_notes": "$additional_notes_test",
-                "specification": "$specification_test"
+                }
+            },
+            {
+                "$project": {
+                    "_id": 0,
+                    "ids": 1,
+                    "details": 1
+                }
             }
-        }
-    ]
+        ]
 
-    # 执行查询
-    new_results = Product.objects.aggregate(query)
+        # 执行查询
+        new_results = Product.objects.aggregate(query)
+        results_dict_list = list(new_results)
 
-    # 假设 results 是从 MongoDB 查询得到的结果
-    results_list.extend(list(new_results))    # 将 CommandCursor 对象转换为列表
+        if results_dict_list:
+            new_recommand_gifts = results_list[0].get('ids', [])
+            results_list = results_list[0].get('details', [])
+            add_recommand_gift(clientip, new_recommand_gifts)
 
-    for i in range(len(results_list)):
-        spec = results_list[i].get('specification', None)
-        add_notes = results_list[i].get('additional_notes', None)
-        feature = results_list[i].get('feature', None)
+            for i in range(len(results_list)):
+                spec = results_list[i].get('specification', None)
+                add_notes = results_list[i].get('additional_notes', None)
+                feature = results_list[i].get('feature', None)
 
-        if spec:
-            data = json.loads(spec)
+                if spec:
+                    data = json.loads(spec)
 
-            # 准备转换后的字典
-            result = {}
+                    # 准备转换后的字典
+                    result = {}
 
-            # 解析 JSON 数据并填充字典
-            current_key = None
-            for item in data['children']:
-                if item['type'] == 'paragraph':
-                    current_key = item['children'][0]['value']
-                    result[current_key] = []
-                elif item['type'] == 'list':
-                    for list_item in item['children']:
-                        value = list_item['children'][0]['value']
-                        result[current_key].append(value)
-            results_list[i]['specification'] = result
+                    # 解析 JSON 数据并填充字典
+                    current_key = None
+                    for item in data['children']:
+                        if item['type'] == 'paragraph':
+                            current_key = item['children'][0]['value']
+                            result[current_key] = []
+                        elif item['type'] == 'list':
+                            for list_item in item['children']:
+                                value = list_item['children'][0]['value']
+                                result[current_key].append(value)
+                    results_list[i]['specification'] = result
 
-        if add_notes:
-            data = json.loads(add_notes)
-            result = []
+                if add_notes:
+                    data = json.loads(add_notes)
+                    result = []
 
-            # 解析 JSON 数据并填充字典
+                    # 解析 JSON 数据并填充字典
 
-            for child in data['children']:
-                if child['type'] == 'list':
-                    for list_item in child['children']:
-                        value = list_item['children'][0]['value']
-                        result.append(value)
+                    for child in data['children']:
+                        if child['type'] == 'list':
+                            for list_item in child['children']:
+                                value = list_item['children'][0]['value']
+                                result.append(value)
 
-            results_list[i]['additional_notes'] = result
+                    results_list[i]['additional_notes'] = result
 
-        if feature:
-            data = json.loads(feature)
-            result = []
+                if feature:
+                    data = json.loads(feature)
+                    result = []
 
-            for child in data['children']:
-                if child['type'] == 'list':
-                    for list_item in child['children']:
-                        value = list_item['children'][0]['value']
-                        result.append(value)
+                    for child in data['children']:
+                        if child['type'] == 'list':
+                            for list_item in child['children']:
+                                value = list_item['children'][0]['value']
+                                result.append(value)
 
-            results_list[i]['feature'] = result
+                    results_list[i]['feature'] = result
 
-    # 成功返回
-    return {
-        'code': '0000',
-        'data': {
-            'result': results_list,
-        },
-        'msg': 'success'
-    }, 200
+            # 成功返回
+            return {
+                'code': '0000',
+                'data': {
+                    'result': results_list,
+                },
+                'msg': 'success'
+            }, 200
+
+        else:
+            flag = False
+            continue
 
 
 # 根据用户的tags信息推荐礼物
-def recommandGiftByTags(req):
+def recommandGiftByTags(req, clientip):
 
     tags = req.get("tags")
     # 初始化 FlagModel
@@ -789,108 +861,154 @@ def recommandGiftByTags(req):
     else:
         formatted_tags = tags    # 如果不是列表，假设它已经是一个字符串
 
+    history_gift = get_recommanded_gifts(clientip)
+
     content = f"Based on the provided tags: {formatted_tags}, give me 10 gift recommendations that are closely related to these themes. "
 
-    stream = g.clientOpenAI.chat.completions.create(
-        model="gpt-4",
-        messages=[{
-            "role": "user",
-            "content": content
-        }],
-        stream=True,
-    )
+    if history_gift:
+        content += f'''Besides I have recommanded some gifts in the list below {history_gift}. Please avoid them to recommand some new items.'''
 
-    # match the user flow's branch
-    typing_string_ = ""
-    for chunk in stream:
-        if chunk.choices[0].delta.content is not None:
-            typing_string_ = typing_string_ + chunk.choices[0].delta.content
-            print(chunk.choices[0].delta.content, end='')
+    while True:
 
-    # 初始化 FlagModel
-    emb_model = current_app.config['MODEL']
+        stream = g.clientOpenAI.chat.completions.create(
+            model="gpt-4",
+            messages=[{
+                "role": "user",
+                "content": content
+            }],
+            stream=True,
+        )
 
-    query_vector = emb_model.encode(typing_string_).astype(np.float64).tolist()
-    # 构建聚合查询
-    query = [
-        {
-            "$vectorSearch": {
-                "index": "vector_index",
-                "path": "descriptionVector",
-                "queryVector": query_vector,
-    # "cosine": True,
-                "numCandidates": 50,
-                "limit": 20
-            }
-        },
-        {
-            "$match": {
-                "status": "ACTIVE"
-            }
-        },
-        {
-            "$lookup": {
-                "from":
-                    "product_variant",    # The collection where the variants are stored.
-                "localField":
-                    "variants",    # The field in the products collection that holds the references.
-                "foreignField":
-                    "_id",    # The field in the variants collection that corresponds to the reference.
-                "as":
-                    "variantDetails"    # The field to populate with the results from the lookup.
-            }
-        },
-        {
-            "$addFields": {
-                "similarityScore": {
-                    "$meta": "vectorSearchScore"
+        # match the user flow's branch
+        typing_string_ = ""
+        for chunk in stream:
+            if chunk.choices[0].delta.content is not None:
+                typing_string_ = typing_string_ + chunk.choices[0].delta.content
+                print(chunk.choices[0].delta.content, end='')
+
+        query_vector = emb_model.encode(typing_string_).astype(
+            np.float64).tolist()
+        # 构建聚合查询
+        query = [
+            {
+                "$vectorSearch": {
+                    "index": "vector_index",
+                    "path": "descriptionVector",
+                    "queryVector": query_vector,
+        # "cosine": True,
+                    "numCandidates": 50,
+                    "limit": 20
                 }
-            }
-        },
-        {
-            "$project": {
-                "_id": 0,
-                "description": 1,
-                "featureImage": 1,
-                "shopify_id": 1,
-                "onlineStoreUrl": 1,
-                "tags": 1,
-                "title": 1,
-                "productType": 1,
-                "featuredImage": 1,
-                "minPrice": "$priceRangeV2.minVariantPrice.amount",
-                "maxPrice": "$priceRangeV2.maxVariantPrice.amount",
-                "currencyCode": "$priceRangeV2.minVariantPrice.currencyCode",
-                "handle": 1,
-                "price": {
-                    "$arrayElemAt": ["$variantDetails.price", 0]
-                },
-                "variants": {
-                    "$map": {
-                        "input": "$variantDetails",
-                        "as": "variant",
-                        "in": {
-                            "shopify_id": "$$variant.shopify_id",
-                            "available": "$$variant.availableForSale",
-                            "price": "$$variant.price"
+            },
+            {
+                "$match": {
+                    "status": "ACTIVE",
+                    "title": {
+                        "$nin": history_gift
+                    }    # 排除已推荐的礼物
+                }
+            },
+            {
+                "$lookup": {
+                    "from":
+                        "product_variant",    # The collection where the variants are stored.
+                    "localField":
+                        "variants",    # The field in the products collection that holds the references.
+                    "foreignField":
+                        "_id",    # The field in the variants collection that corresponds to the reference.
+                    "as":
+                        "variantDetails"    # The field to populate with the results from the lookup.
+                }
+            },
+            {
+                "$addFields": {
+                    "similarityScore": {
+                        "$meta": "vectorSearchScore"
+                    }
+                }
+            },
+            {
+                "$group": {
+                    "_id": None,
+                    "ids": {
+                        "$push": "$title"
+                    },
+                    "details": {
+                        "$push": {
+                            "description":
+                                "$description",
+                            "featureImage":
+                                "$featureImage",
+                            "shopify_id":
+                                "$shopify_id",
+                            "onlineStoreUrl":
+                                "$onlineStoreUrl",
+                            "tags":
+                                "$tags",
+                            "title":
+                                "$title",
+                            "productType":
+                                "$productType",
+                            "featuredImage":
+                                "$featuredImage",
+                            "minPrice":
+                                "$priceRangeV2.minVariantPrice.amount",
+                            "maxPrice":
+                                "$priceRangeV2.maxVariantPrice.amount",
+                            "currencyCode":
+                                "$priceRangeV2.minVariantPrice.currencyCode",
+                            "handle":
+                                1,
+                            "price": {
+                                "$arrayElemAt": ["$variantDetails.price", 0]
+                            },
+                            "variants": {
+                                "$map": {
+                                    "input": "$variantDetails",
+                                    "as": "variant",
+                                    "in": {
+                                        "shopify_id":
+                                            "$$variant.shopify_id",
+                                        "available":
+                                            "$$variant.availableForSale",
+                                        "price":
+                                            "$$variant.price"
+                                    }
+                                }
+                            }
                         }
                     }
                 }
+            },
+            {
+                "$project": {
+                    "_id": 0,
+                    "ids": 1,
+                    "details": 1
+                }
             }
-        }
-    ]
+        ]
 
-    # 执行查询
-    results = Product.objects.aggregate(query)
+        # 执行查询
+        results = Product.objects.aggregate(query)
 
-    # 假设 results 是从 MongoDB 查询得到的结果
-    results_list = list(results)    # 将 CommandCursor 对象转换为列表
+        # 假设 results 是从 MongoDB 查询得到的结果
+        results_list = list(results)    # 将 CommandCursor 对象转换为列表
 
-    # 成功返回
-    return {
-        'code': '0000',
-        'data': {
-            'result': results_list,
-        },
-        'msg': 'success'
-    }, 200
+        if results_list:
+            new_recommand_gifts = results_list[0].get('ids', [])
+            results_list = results_list[0].get('details', [])
+            add_recommand_gift(clientip, new_recommand_gifts)
+
+            # 成功返回
+            return {
+                'code': '0000',
+                'data': {
+                    'result': results_list,
+                },
+                'msg': 'success'
+            }, 200
+
+        else:
+
+            continue
