@@ -12,7 +12,7 @@ def add_recommand_gift(user_ip, gift_ids, redis_client=None):
     redis_client.rpush(redis_key, *gift_ids)
 
     # 设置过期时间为2小时
-    redis_client.expire(redis_key, 7200)
+    redis_client.expire(redis_key, 1800)
 
 
 def get_recommanded_gifts(user_ip, redis_client=None):

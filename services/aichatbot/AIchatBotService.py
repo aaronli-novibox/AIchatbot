@@ -144,6 +144,9 @@ def recommandGiftByUserInput(req, clientip):
 
     content = f'''Here is a user's input:"{user_typing}", give me a list of 10 terms to describe the potential product. You must include the products mentioned in the input.'''
 
+    if history_gift:
+        content += f'''Besides I have recommanded some gifts in the list below {history_gift}. Please avoid them to recommand some new items.'''
+
     stream = g.clientOpenAI.chat.completions.create(
         model="gpt-4",
         messages=[{
@@ -211,7 +214,7 @@ def recommandGiftByUserInput(req, clientip):
             "$group": {
                 "_id": None,
                 "ids": {
-                    "$push": "$shopify_id"
+                    "$push": "$title"
                 },
                 "details": {
                     "$push": {
@@ -249,13 +252,13 @@ def recommandGiftByUserInput(req, clientip):
         results_dict = results_list[0]
         new_recommand_gifts = results_dict.get('ids', [])
         results = results_dict.get('details', [])
+        add_recommand_gift(clientip, new_recommand_gifts)
+
     else:
         new_recommand_gifts = []
         results = []
 
     current_app.logger.info(new_recommand_gifts)
-
-    add_recommand_gift(clientip, new_recommand_gifts)
 
     # 假设 results 是从 MongoDB 查询得到的结果
     # results_list = list(results)    # 将 CommandCursor 对象转换为列表
