@@ -33,6 +33,7 @@ import hashlib
 from urllib.parse import urlencode
 from flaskr.influencers import track_orders
 import redis
+import logging
 
 
 def load_model() -> FlagModel:
@@ -51,6 +52,8 @@ def load_model() -> FlagModel:
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
+
+    app.logger.setLevel(logging.INFO)
     # Browser allows cross-domain requests from specific origins
     CORS(app)
 
