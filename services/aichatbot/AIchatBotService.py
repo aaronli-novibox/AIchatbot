@@ -140,6 +140,8 @@ def recommandGiftByUserInput(req, clientip):
 
     history_gift = get_recommanded_gifts(clientip)
 
+    current_app.logger.info(history_gift)
+
     content = f'''Here is a user's input:"{user_typing}", give me a list of 10 terms to describe the potential product. You must include the products mentioned in the input.'''
 
     stream = g.clientOpenAI.chat.completions.create(
