@@ -172,20 +172,20 @@ def recommandGiftByUserInput(req, clientip):
         # 构建聚合查询
         query = [
             {
-                "$match": {
-                    "status": "ACTIVE",    # 先筛选状态为ACTIVE的文档
-                    "title": {
-                        "$nin": history_gift
-                    }    # 排除已推荐的礼物
-                }
-            },
-            {
                 "$vectorSearch": {
                     "index": "vector_index",
                     "path": "descriptionVector",
                     "queryVector": query_vector,
                     "numCandidates": 50,
-                    "limit": 10
+                    "limit": 20
+                }
+            },
+            {
+                "$match": {
+                    "status": "ACTIVE",    # 先筛选状态为ACTIVE的文档
+                    "title": {
+                        "$nin": history_gift
+                    }    # 排除已推荐的礼物
                 }
             },
             {
@@ -386,6 +386,15 @@ def recommandGiftByList(req, clientip):
         # 构建聚合查询
         query = [
             {
+                "$vectorSearch": {
+                    "index": "vector_index",
+                    "path": "descriptionVector",
+                    "queryVector": query_vector,
+                    "numCandidates": 50,
+                    "limit": 20
+                }
+            },
+            {
                 "$match": {
                     "priceRangeV2.minVariantPrice.currencyCode": "USD",
                     "priceRangeV2.maxVariantPrice.currencyCode": "USD",
@@ -410,15 +419,6 @@ def recommandGiftByList(req, clientip):
                             ]
                         }]
                     }
-                }
-            },
-            {
-                "$vectorSearch": {
-                    "index": "vector_index",
-                    "path": "descriptionVector",
-                    "queryVector": query_vector,
-                    "numCandidates": 50,
-                    "limit": 10
                 }
             },
             {
@@ -891,21 +891,21 @@ def recommandGiftByTags(req, clientip):
         # 构建聚合查询
         query = [
             {
-                "$match": {
-                    "status": "ACTIVE",
-                    "title": {
-                        "$nin": history_gift
-                    }    # 排除已推荐的礼物
-                }
-            },
-            {
                 "$vectorSearch": {
                     "index": "vector_index",
                     "path": "descriptionVector",
                     "queryVector": query_vector,
         # "cosine": True,
                     "numCandidates": 50,
-                    "limit": 10
+                    "limit": 20
+                }
+            },
+            {
+                "$match": {
+                    "status": "ACTIVE",
+                    "title": {
+                        "$nin": history_gift
+                    }    # 排除已推荐的礼物
                 }
             },
             {
