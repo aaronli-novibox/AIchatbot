@@ -182,7 +182,7 @@ def recommandGiftByUserInput(req, clientip):
         {
             "$match": {
                 "status": "ACTIVE",    # 先筛选状态为ACTIVE的文档
-                "shopify_id": {
+                "title": {
                     "$nin": history_gift
                 }    # 排除已推荐的礼物
             }
