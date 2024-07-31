@@ -240,6 +240,7 @@ def recommandGiftByUserInput(req, clientip):
     # results = g.db.dev.product.aggregate(query)
     results_dict = Product.objects.aggregate(query)
     results_dict = dict(results_dict)
+    current_app.logger.info(results_dict)
     new_recommand_gifts, results = results_dict['ids'], results_dict['details']
 
     current_app.logger.info(new_recommand_gifts)
