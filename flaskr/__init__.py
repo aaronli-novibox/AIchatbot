@@ -559,7 +559,7 @@ def create_app(test_config=None):
             return jsonify({'error': 'Influencer not found'}), 404
 
         role = data.get('role')
-        if role != 'admin' or influencer_data.role != 'admin':
+        if role.lower() != 'admin' or influencer_data.role.lower() != 'admin':
             return jsonify({'message': 'Permission Denied'}), 500
 
         range = data.get('range')
