@@ -225,11 +225,11 @@ def create_app(test_config=None):
             html_body = render_template('email_verfication.html',
                                         link=confirm_url,
                                         username=first_name)
-            msg = Message(subject, recipients=recipients, html=html_body)
+            msg = Message(subject, sender=app.config['MAIL_USERNAME'], recipients=recipients, html=html_body)
 
-            # 使用线程异步发送邮件
-            thread = threading.Thread(target=send_async_email, args=[app, msg])
-            thread.start()
+            # # 使用线程异步发送邮件
+            # thread = threading.Thread(target=send_async_email, args=[app, msg])
+            # thread.start()
         else:
             confirm = True
             msg = None
@@ -264,17 +264,15 @@ def create_app(test_config=None):
             "is_email_confirmed": confirm
         }
 
-        try:
-            # Send email message only if msg is not None
-            if msg:
-                mail.send(msg)
-            else:
-                return jsonify({'message': 'Registration successful'}), 200
-        except Exception as e:
-            print(e)
-            return jsonify({'message': 'Email sending failed'
+        if msg:
+                try:
+                    mail.send(msg)
+                except Exception as e:
+                    print('Email send failed')
+                    return jsonify({'message': 'Email sending failed'
                            }), 500    # Email sending failed
-
+        else:
+                return jsonify({'message': 'Registration successful'}), 200
         # Save user data to MongoDB
         Influencer(**user_data).save()
 
@@ -561,7 +559,7 @@ def create_app(test_config=None):
             return jsonify({'error': 'Influencer not found'}), 404
 
         role = data.get('role')
-        if role != 'admin' or influencer_data.role != 'admin':
+        if role.lower() != 'admin' or influencer_data.role.lower() != 'admin':
             return jsonify({'message': 'Permission Denied'}), 500
 
         range = data.get('range')
