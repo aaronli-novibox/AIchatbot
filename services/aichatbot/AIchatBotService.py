@@ -921,6 +921,14 @@ def recommandGiftByTags(req, clientip):
                 }
             },
             {
+                "$lookup": {
+                    "from": "product_option",
+                    "localField": "options",
+                    "foreignField": "_id",
+                    "as": "optionsDetails"
+                }
+            },
+            {
                 "$addFields": {
                     "similarityScore": {
                         "$meta": "vectorSearchScore"
@@ -962,6 +970,30 @@ def recommandGiftByTags(req, clientip):
                             "price": {
                                 "$arrayElemAt": ["$variantDetails.price", 0]
                             },
+                            "reviews":
+                                1,
+                            "options": {
+                                "$map": {
+                                    "input": "$optionsDetails",
+                                    "as": "option",
+                                    "in": {
+                                        "position": "$$option.position",
+                                        "name": "$$option.name",
+                                        "values": "$$option.values"
+                                    }
+                                }
+                            },
+                            "images": {
+                                "$reduce": {
+                                    "input": "$variantDetails",
+                                    "initialValue": [],
+                                    "in": {
+                                        "$concatArrays": [
+                                            "$$value", ["$$this.image"]
+                                        ]
+                                    }
+                                }
+                            },
                             "variants": {
                                 "$map": {
                                     "input": "$variantDetails",
@@ -972,10 +1004,26 @@ def recommandGiftByTags(req, clientip):
                                         "available":
                                             "$$variant.availableForSale",
                                         "price":
-                                            "$$variant.price"
+                                            "$$variant.price",
+                                        "compareAtPrice":
+                                            "$$variant.compareAtPrice",
+                                        "image":
+                                            "$$variant.image",
+                                        "title":
+                                            "$$variant.title"
                                     }
                                 }
-                            }
+                            },
+                            "ratingValue":
+                                1,
+                            "reviewCount":
+                                1,
+                            "feature":
+                                "$feature_test",
+                            "additional_notes":
+                                "$additional_notes_test",
+                            "specification":
+                                "$specification_test"
                         }
                     }
                 }
