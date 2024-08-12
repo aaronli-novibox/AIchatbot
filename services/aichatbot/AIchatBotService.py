@@ -868,6 +868,7 @@ def recommandGiftByTags(req, clientip):
     if history_gift:
         content += f'''Besides I have recommanded some gifts in the list below {history_gift}. Please avoid them to recommand some new items.'''
 
+
     while True:
 
         stream = g.clientOpenAI.chat.completions.create(
@@ -990,15 +991,63 @@ def recommandGiftByTags(req, clientip):
         ]
 
         # 执行查询
-        results = Product.objects.aggregate(query)
+        new_results = Product.objects.aggregate(query)
 
-        # 假设 results 是从 MongoDB 查询得到的结果
-        results_list = list(results)    # 将 CommandCursor 对象转换为列表
+        results_dict_list = list(new_results)
 
-        if results_list:
+        if results_dict_list:
             new_recommand_gifts = results_list[0].get('ids', [])
             results_list = results_list[0].get('details', [])
             add_recommand_gift(clientip, new_recommand_gifts)
+
+            for i in range(len(results_list)):
+                spec = results_list[i].get('specification', None)
+                add_notes = results_list[i].get('additional_notes', None)
+                feature = results_list[i].get('feature', None)
+
+                if spec:
+                    data = json.loads(spec)
+
+                    # 准备转换后的字典
+                    result = {}
+
+                    # 解析 JSON 数据并填充字典
+                    current_key = None
+                    for item in data['children']:
+                        if item['type'] == 'paragraph':
+                            current_key = item['children'][0]['value']
+                            result[current_key] = []
+                        elif item['type'] == 'list':
+                            for list_item in item['children']:
+                                value = list_item['children'][0]['value']
+                                result[current_key].append(value)
+                    results_list[i]['specification'] = result
+
+                if add_notes:
+                    data = json.loads(add_notes)
+                    result = []
+
+                    # 解析 JSON 数据并填充字典
+
+                    for child in data['children']:
+                        if child['type'] == 'list':
+                            for list_item in child['children']:
+                                value = list_item['children'][0]['value']
+                                result.append(value)
+
+                    results_list[i]['additional_notes'] = result
+
+                if feature:
+                    data = json.loads(feature)
+                    result = []
+
+                    for child in data['children']:
+                        if child['type'] == 'list':
+                            for list_item in child['children']:
+                                value = list_item['children'][0]['value']
+                                result.append(value)
+
+                    results_list[i]['feature'] = result
 
             # 成功返回
             return {
@@ -1010,5 +1059,6 @@ def recommandGiftByTags(req, clientip):
             }, 200
 
         else:
+
 
             continue
