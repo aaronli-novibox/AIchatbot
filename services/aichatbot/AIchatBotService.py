@@ -782,8 +782,8 @@ def recommandGiftByList(req, clientip):
         results_dict_list = list(new_results)
 
         if results_dict_list:
-            new_recommand_gifts = results_list[0].get('ids', [])
-            results_list = results_list[0].get('details', [])
+            new_recommand_gifts = results_dict_list[0].get('ids', [])
+            results_list = results_dict_list[0].get('details', [])
             add_recommand_gift(clientip, new_recommand_gifts)
 
             for i in range(len(results_list)):
@@ -867,7 +867,6 @@ def recommandGiftByTags(req, clientip):
 
     if history_gift:
         content += f'''Besides I have recommanded some gifts in the list below {history_gift}. Please avoid them to recommand some new items.'''
-
 
     while True:
 
@@ -996,8 +995,8 @@ def recommandGiftByTags(req, clientip):
         results_dict_list = list(new_results)
 
         if results_dict_list:
-            new_recommand_gifts = results_list[0].get('ids', [])
-            results_list = results_list[0].get('details', [])
+            new_recommand_gifts = results_dict_list[0].get('ids', [])
+            results_list = results_dict_list[0].get('details', [])
             add_recommand_gift(clientip, new_recommand_gifts)
 
             for i in range(len(results_list)):
@@ -1059,6 +1058,5 @@ def recommandGiftByTags(req, clientip):
             }, 200
 
         else:
-
 
             continue
