@@ -750,18 +750,14 @@ def recommandGiftByList(req, clientip):
                                     }
                                 }
                             },
-                            "handle": {
-                                "$ifNull": ["$handle", None]
-                            },
-                            "reviews": {
-                                "$ifNull": ["$reviews", None]
-                            },
-                            "ratingValue": {
-                                "$ifNull": ["$ratingValue", None]
-                            },
-                            "reviewCount": {
-                                "$ifNull": ["$reviewCount", None]
-                            },
+                            "handle":
+                                "$handle",
+                            "reviews":
+                                "$reviews",
+                            "ratingValue":
+                                "$ratingValue",
+                            "reviewCount":
+                                "$reviewCount",
                             "feature":
                                 "$feature_test",
                             "additional_notes":
@@ -1014,18 +1010,14 @@ def recommandGiftByTags(req, clientip):
                                     }
                                 }
                             },
-                            "handle": {
-                                "$ifNull": ["$handle", None]
-                            },
-                            "reviews": {
-                                "$ifNull": ["$reviews", None]
-                            },
-                            "ratingValue": {
-                                "$ifNull": ["$ratingValue", 0]
-                            },
-                            "reviewCount": {
-                                "$ifNull": ["$reviewCount", 0]
-                            },
+                            "handle":
+                                "$handle",
+                            "reviews":
+                                "$reviews",
+                            "ratingValue":
+                                "$ratingValue",
+                            "reviewCount":
+                                "$reviewCount",
                             "feature":
                                 "$feature_test",
                             "additional_notes":
