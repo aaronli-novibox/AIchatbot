@@ -694,13 +694,9 @@ def recommandGiftByList(req, clientip):
                                 "$priceRangeV2.maxVariantPrice.amount",
                             "currencyCode":
                                 "$priceRangeV2.minVariantPrice.currencyCode",
-                            "handle":
-                                1,
                             "price": {
                                 "$arrayElemAt": ["$variantDetails.price", 0]
                             },
-                            "reviews":
-                                1,
                             "options": {
                                 "$map": {
                                     "input": "$optionsDetails",
@@ -754,10 +750,18 @@ def recommandGiftByList(req, clientip):
                                     }
                                 }
                             },
-                            "ratingValue":
-                                1,
-                            "reviewCount":
-                                1,
+                            "handle": {
+                                "$ifNull": ["$handle", None]
+                            },
+                            "reviews": {
+                                "$ifNull": ["$reviews", None]
+                            },
+                            "ratingValue": {
+                                "$ifNull": ["$ratingValue", None]
+                            },
+                            "reviewCount": {
+                                "$ifNull": ["$reviewCount", None]
+                            },
                             "feature":
                                 "$feature_test",
                             "additional_notes":
@@ -965,13 +969,9 @@ def recommandGiftByTags(req, clientip):
                                 "$priceRangeV2.maxVariantPrice.amount",
                             "currencyCode":
                                 "$priceRangeV2.minVariantPrice.currencyCode",
-                            "handle":
-                                1,
                             "price": {
                                 "$arrayElemAt": ["$variantDetails.price", 0]
                             },
-                            "reviews":
-                                1,
                             "options": {
                                 "$map": {
                                     "input": "$optionsDetails",
@@ -1014,10 +1014,18 @@ def recommandGiftByTags(req, clientip):
                                     }
                                 }
                             },
-                            "ratingValue":
-                                1,
-                            "reviewCount":
-                                1,
+                            "handle": {
+                                "$ifNull": ["$handle", None]
+                            },
+                            "reviews": {
+                                "$ifNull": ["$reviews", None]
+                            },
+                            "ratingValue": {
+                                "$ifNull": ["$ratingValue", None]
+                            },
+                            "reviewCount": {
+                                "$ifNull": ["$reviewCount", None]
+                            },
                             "feature":
                                 "$feature_test",
                             "additional_notes":
