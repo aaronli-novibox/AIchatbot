@@ -750,14 +750,18 @@ def recommandGiftByList(req, clientip):
                                     }
                                 }
                             },
-                            "handle":
-                                "$handle",
-                            "reviews":
-                                "$reviews",
-                            "ratingValue":
-                                "$ratingValue",
-                            "reviewCount":
-                                "$reviewCount",
+                            "handle": {
+                                "$ifNull": ["$handle", None]
+                            },
+                            "reviews": {
+                                "$ifNull": ["$reviews", None]
+                            },
+                            "ratingValue": {
+                                "$ifNull": ["$ratingValue", 0]
+                            },
+                            "reviewCount": {
+                                "$ifNull": ["$reviewCount", 0]
+                            },
                             "feature":
                                 "$feature_test",
                             "additional_notes":
@@ -1010,14 +1014,18 @@ def recommandGiftByTags(req, clientip):
                                     }
                                 }
                             },
-                            "handle":
-                                "$handle",
-                            "reviews":
-                                "$reviews",
-                            "ratingValue":
-                                "$ratingValue",
-                            "reviewCount":
-                                "$reviewCount",
+                            "handle": {
+                                "$ifNull": ["$handle", None]
+                            },
+                            "reviews": {
+                                "$ifNull": ["$reviews", None]
+                            },
+                            "ratingValue": {
+                                "$ifNull": ["$ratingValue", 0]
+                            },
+                            "reviewCount": {
+                                "$ifNull": ["$reviewCount", 0]
+                            },
                             "feature":
                                 "$feature_test",
                             "additional_notes":
