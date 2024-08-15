@@ -1021,10 +1021,10 @@ def recommandGiftByTags(req, clientip):
                                 "$ifNull": ["$reviews", None]
                             },
                             "ratingValue": {
-                                "$ifNull": ["$ratingValue", None]
+                                "$ifNull": ["$ratingValue", 0]
                             },
                             "reviewCount": {
-                                "$ifNull": ["$reviewCount", None]
+                                "$ifNull": ["$reviewCount", 0]
                             },
                             "feature":
                                 "$feature_test",
