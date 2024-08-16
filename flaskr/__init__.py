@@ -344,7 +344,7 @@ def create_app(test_config=None):
 
         else:
             return jsonify({'error': 'Unsupported platform'}), 400
-
+    
         return jsonify({'url': post_url, 'text': text_to_copy})
 
     @app.route('/confirm/<token>', methods=['GET'])

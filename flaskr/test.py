@@ -9,16 +9,32 @@
 #         client = MongoClient("mongodb+srv://qi:novibox2023@test.y1qqimb.mongodb.net/?retryWrites=true&w=majority")
 #         db = client['dev']
 
-#         # Select the collection
-#         collection = db['line_item']
+#         # Select the collections
+#         influencer_collection = db['influencer']
+#         order_collection = db['order']
 
-#         # Update documents in the collection
-#         result = collection.update_many(
-#             {'commission':{'$exists': True}},
-#             {'$set': {'commission': '8%'}}
-#         )
-#         print("succeed")
+#         # Find the influencer with user_name 'Zhimin Meng'
+#         influencer = influencer_collection.find_one({'influencer_name': 'Zhimin Meng'})
+#         if not influencer:
+#             print("influencer not found")
 
+#         if 'orders' in influencer:
+#             updated_orders = []
+#             for order_id in influencer['orders']:
+#                 # Check if the order exists in the 'order' collection
+#                 if order_collection.find_one({'_id': order_id}):
+#                     updated_orders.append(order_id)
+
+#             # Update the influencer document with the cleaned 'orders' list
+#             influencer_collection.update_one(
+#                 {'_id': influencer['_id']},
+#                 {'$set': {'orders': updated_orders}}
+#             )
+
+#             print("Influencer's orders list has been cleaned and updated.")
+
+#         else:
+#             print("Influencer not found or no 'orders' field present.")
 
 #     except Exception as e:
 #         print(f"An error occurred: {e}")
@@ -26,7 +42,8 @@
 
 
 
-# test data
+
+# # test data
 from product_mongo import *
 from mongoengine import connect
 import os
